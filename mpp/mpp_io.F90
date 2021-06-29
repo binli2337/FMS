@@ -369,6 +369,7 @@ private
   public :: MAX_FILE_SIZE
   !--- public data type ------------------------------------------------
   public :: axistype, atttype, fieldtype, validtype, filetype
+  public :: axistype_r8, atttype_r8, fieldtype_r8, validtype_r8, filetype_r8
 
   !--- public data -----------------------------------------------------
   public :: default_field, default_axis, default_att
@@ -411,6 +412,14 @@ type :: atttype
      real, pointer       :: fatt(:) =>NULL() ! just use type conversion for integers
   end type atttype
 
+type :: atttype_r8
+     private
+     integer             :: type, len
+     character(len=128)  :: name
+     character(len=MAX_ATT_LENGTH) :: catt
+     real(DOUBLE_KIND), pointer       :: fatt(:) =>NULL() ! just use type conversion for integers
+  end type atttype_r8
+
   type :: axistype
      private
      character(len=128) :: name
@@ -431,11 +440,37 @@ type :: atttype
      type(atttype), pointer :: Att(:) =>NULL()
   end type axistype
 
+  type :: axistype_r8
+     private
+     character(len=128) :: name
+     character(len=128) :: name_bounds
+     character(len=128) :: units
+     character(len=256) :: longname
+     character(len=8)   :: cartesian
+     character(len=256) :: compressed
+     character(len=24)  :: calendar
+     integer            :: sense, len          !+/-1, depth or height?
+     type(domain1D)     :: domain              !if pointer is associated, it is a distributed data axis
+     real(DOUBLE_KIND), pointer      :: data(:) =>NULL()    !axis values (not used if time axis)
+     real(DOUBLE_KIND), pointer      :: data_bounds(:) =>NULL()    !axis bounds values
+     integer, pointer   :: idata(:) =>NULL()   !compressed axis valuesi
+     integer            :: id, did, type, natt !id is the "variable ID", did is the "dimension ID":
+                                               !netCDF requires 2 IDs for axes
+     integer            :: shift               !normally is 0. when domain is symmetry, its value maybe 1.
+     type(atttype_r8), pointer :: Att(:) =>NULL()
+  end type axistype_r8
+
   type :: validtype
      private
      logical :: is_range ! if true, then the data represent the valid range
      real    :: min,max  ! boundaries of the valid range or missing value
   end type validtype
+
+  type :: validtype_r8
+     private
+     logical :: is_range ! if true, then the data represent the valid range
+     real(DOUBLE_KIND)    :: min,max  ! boundaries of the valid range or missing value
+  end type validtype_r8
 
   type :: fieldtype
      private
@@ -455,6 +490,25 @@ type :: atttype
      type(atttype), pointer  :: Att(:) =>NULL()
      integer                 :: position ! indicate the location of the data ( CENTER, NORTH, EAST, CORNER )
   end type fieldtype
+
+  type :: fieldtype_r8
+     private
+     character(len=128)      :: name
+     character(len=128)      :: units
+     character(len=256)      :: longname
+     character(len=256)      :: standard_name   ! CF standard name
+     real(DOUBLE_KIND)                    :: min, max, missing, fill, scale, add
+     integer                 :: pack
+     integer(LONG_KIND), dimension(3) :: checksum
+     type(axistype_r8), pointer :: axes(:) =>NULL() !axes associated with field size, time_axis_index redundantly
+                                        !hold info already contained in axes. it's clunky and inelegant,
+                                        !but required so that axes can be shared among multiple files
+     integer, pointer        :: size(:) =>NULL()
+     integer                 :: time_axis_index
+     integer                 :: id, type, natt, ndim
+     type(atttype_r8), pointer  :: Att(:) =>NULL()
+     integer                 :: position ! indicate the location of the data ( CENTER, NORTH, EAST, CORNER )
+  end type fieldtype_r8
 
   type :: filetype
      private
@@ -485,6 +539,36 @@ type :: atttype
      type(domainUG),pointer :: domain_ug => null() !Is this actually pointed to?
 !----------
   end type filetype
+
+  type :: filetype_r8
+     private
+     character(len=256) :: name
+     integer            :: action, format, access, threading, fileset, record, ncid
+     logical            :: opened, initialized, nohdrs
+     integer            :: time_level
+     real(DOUBLE_KIND)  :: time
+     logical            :: valid
+     logical            :: write_on_this_pe   ! indicate if will write out from this pe
+     logical            :: read_on_this_pe    ! indicate if will read from this pe
+     logical            :: io_domain_exist    ! indicate if io_domain exist or not.
+     integer            :: id       !variable ID of time axis associated with file (only one time axis per file)
+     integer            :: recdimid !dim ID of time axis associated with file (only one time axis per file)
+     real(DOUBLE_KIND), pointer :: time_values(:) =>NULL() ! time axis values are stored here instead of axis%data
+                                                  ! since mpp_write assumes these values are not time values.
+                                                  ! Not used in mpp_write
+     ! additional elements of filetype for mpp_read (ignored for mpp_write)
+     integer :: ndim, nvar, natt  ! number of dimensions, non-dimension variables and global attributes
+                                  ! redundant axis types stored here and in associated fieldtype
+                                  ! some axes are not used by any fields, i.e. "edges"
+     type(axistype_r8), pointer  :: axis(:) =>NULL()
+     type(fieldtype_r8), pointer :: var(:) =>NULL()
+     type(atttype_r8), pointer   :: att(:) =>NULL()
+     type(domain2d), pointer  :: domain =>NULL()
+!----------
+!ug support
+     type(domainUG),pointer :: domain_ug => null() !Is this actually pointed to?
+!----------
+  end type filetype_r8
 
 !***********************************************************************
 !

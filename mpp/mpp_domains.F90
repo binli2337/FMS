@@ -415,6 +415,18 @@ module mpp_domains_mod
      integer, pointer :: js2(:)=>NULL(), je2(:)=>NULL()         ! j-index of neighbor tile repsenting contact
   end type contact_type
 
+  type contact_type_r8
+     private
+     integer          :: ncontact                               ! number of neighbor tile.
+     integer, pointer :: tile(:) =>NULL()                      ! neighbor tile
+     integer, pointer :: align1(:)=>NULL(), align2(:)=>NULL()   ! alignment of me and neighbor
+     real(DOUBLE_KIND),    pointer :: refine1(:)=>NULL(), refine2(:)=>NULL() !
+     integer, pointer :: is1(:)=>NULL(), ie1(:)=>NULL()         ! i-index of current tile repsenting contact
+     integer, pointer :: js1(:)=>NULL(), je1(:)=>NULL()         ! j-index of current tile repsenting contact
+     integer, pointer :: is2(:)=>NULL(), ie2(:)=>NULL()         ! i-index of neighbor tile repsenting contact
+     integer, pointer :: js2(:)=>NULL(), je2(:)=>NULL()         ! j-index of neighbor tile repsenting contact
+  end type contact_type_r8
+
 
   type index_type
      integer :: is_me, ie_me, js_me, je_me
