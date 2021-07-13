@@ -1665,7 +1665,7 @@ function parse_reals ( text, label, values ) result (parse)
 !     values from a list. This should be the size of the value array.
 !   </OUT>
 character(len=*), intent(in)  :: text, label
-real,             intent(out) :: values(:)
+real(FLOAT_KIND), intent(out) :: values(:)
 
 include 'parse.inc'
 end function parse_reals
@@ -1724,10 +1724,10 @@ end function parse_strings
 
 function parse_real ( text, label, value ) result (parse)
 character(len=*), intent(in)  :: text, label
-real,             intent(out) :: value
+real(FLOAT_KIND), intent(out) :: value
 integer :: parse
 
-real :: values(1)
+real(FLOAT_KIND) :: values(1) 
 
    parse = parse_reals ( text, label, values )
    if (parse > 0) value = values(1)
