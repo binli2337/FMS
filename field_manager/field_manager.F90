@@ -18,6 +18,7 @@
 !***********************************************************************
 
 module field_manager_mod
+#include <fms_platform.h> 
 #ifndef MAXFIELDS_
 #define MAXFIELDS_ 250
 #endif
@@ -432,6 +433,8 @@ end interface
 interface parse
   module procedure  parse_real
   module procedure  parse_reals
+  module procedure  parse_real_r8
+  module procedure  parse_reals_r8
   module procedure  parse_integer
   module procedure  parse_integers
   module procedure  parse_string
@@ -1671,6 +1674,32 @@ end function parse_reals
 !#######################################################################
 !#######################################################################
 
+function parse_reals_r8 ( text, label, values ) result (parse)
+!
+!   <IN NAME="text" TYPE="character(len=*)">
+!     The text string from which the values will be parsed.
+!   </IN>
+!   <IN NAME="label" TYPE="character(len=*)">
+!     A label which describes the values being decoded.
+!   </IN>
+!   <OUT NAME="value" TYPE="integer, real*8, character(len=*)">
+!     The value or values that have been decoded.
+!   </OUT>
+!   <OUT NAME="parse" TYPE="integer">
+!     The number of values that have been decoded. This allows
+!     a user to define a large array and fill it partially with
+!     values from a list. This should be the size of the value array.
+!   </OUT>
+character(len=*), intent(in)  :: text, label
+real(DOUBLE_KIND),intent(out) :: values(:)
+
+include 'parse.inc'
+end function parse_reals_r8
+! </FUNCTION>
+
+!#######################################################################
+!#######################################################################
+
 function parse_integers ( text, label, values ) result (parse)
 character(len=*), intent(in)  :: text, label
 integer,          intent(out) :: values(:)
@@ -1703,6 +1732,20 @@ real :: values(1)
    parse = parse_reals ( text, label, values )
    if (parse > 0) value = values(1)
 end function parse_real
+
+!#######################################################################
+!#######################################################################
+
+function parse_real_r8 ( text, label, value ) result (parse)
+character(len=*), intent(in)  :: text, label
+real(DOUBLE_KIND),intent(out) :: value
+integer :: parse
+
+real(DOUBLE_KIND) :: values(1)
+
+   parse = parse_reals_r8 ( text, label, values )
+   if (parse > 0) value = values(1)
+end function parse_real_r8
 
 !#######################################################################
 !#######################################################################
