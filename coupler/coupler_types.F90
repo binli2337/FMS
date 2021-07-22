@@ -22,6 +22,7 @@
 !! @author Richard Slater, John Dunne
 !! @email gfdl.climate.model.info@noaa.gov
 module coupler_types_mod
+#include <fms_platform.h>
   use fms_mod,           only: write_version_number, lowercase
   use fms2_io_mod,       only: FmsNetcdfDomainFile_t, open_file, register_restart_field
   use fms2_io_mod,       only: register_axis, unlimited, variable_exists, check_if_open
@@ -62,7 +63,10 @@ module coupler_types_mod
   !       3-d fields
   type, public :: coupler_3d_values_type
     character(len=48)       :: name = ' '  !< The diagnostic name for this array
-    real, pointer, contiguous, dimension(:,:,:) :: values => NULL() !< The pointer to the
+    real(FLOAT_KIND), pointer, contiguous, dimension(:,:,:) :: values_4 => NULL() !< The pointer to the
+                                           !! array of values for this field; this
+                                           !! should be changed to allocatable
+    real(DOUBLE_KIND), pointer, contiguous, dimension(:,:,:) :: values_8 => NULL() !< The pointer to the
                                            !! array of values for this field; this
                                            !! should be changed to allocatable
     logical                 :: mean = .true. !< mean
@@ -82,7 +86,8 @@ module coupler_types_mod
     type(coupler_3d_values_type), pointer, dimension(:) :: field => NULL() !< field
     character(len=128)                :: flux_type = ' ' !< flux_type
     character(len=128)                :: implementation = ' ' !< implementation
-    real, pointer, dimension(:)       :: param => NULL() !< param
+    real(FLOAT_KIND), pointer, dimension(:)       :: param_4 => NULL() !< param
+    real(DOUBLE_KIND), pointer, dimension(:)      :: param_8 => NULL() !< param
     logical, pointer, dimension(:)    :: flag => NULL() !< flag
     integer                           :: atm_tr_index = 0 !< atm_tr_index
     character(len=128)                :: ice_restart_file = ' ' !< ice_restart_file
@@ -94,7 +99,7 @@ module coupler_types_mod
     logical                           :: use_atm_pressure !< use_atm_pressure
     logical                           :: use_10m_wind_speed !< use_10m_wind_speed
     logical                           :: pass_through_ice !< pass_through_ice
-    real                              :: mol_wt = 0.0 !< mol_wt
+    real(DOUBLE_KIND)                  :: mol_wt = 0.0 !< mol_wt
   end type coupler_3d_field_type
 
   type, public :: coupler_3d_bc_type
@@ -110,7 +115,10 @@ module coupler_types_mod
   ! 2-d fields
   type, public    :: coupler_2d_values_type
     character(len=48)       :: name = ' '  !< The diagnostic name for this array
-    real, pointer, contiguous, dimension(:,:) :: values => NULL() !< The pointer to the
+    real(FLOAT_KIND), pointer, contiguous, dimension(:,:) :: values_4 => NULL() !< The pointer to the
+                                           !! array of values for this field; this
+                                           !! should be changed to allocatable
+    real(DOUBLE_KIND), pointer, contiguous, dimension(:,:) :: values_8 => NULL() !< The pointer to the
                                            !! array of values for this field; this
                                            !! should be changed to allocatable
     logical                 :: mean = .true. !< mean
@@ -130,7 +138,8 @@ module coupler_types_mod
     type(coupler_2d_values_type), pointer, dimension(:)   :: field => NULL() !< field
     character(len=128)                :: flux_type = ' ' !< flux_type
     character(len=128)                :: implementation = ' ' !< implementation
-    real, pointer, dimension(:)       :: param => NULL() !< param
+    real(FLOAT_KIND), pointer, dimension(:)       :: param_4 => NULL() !< param
+    real(DOUBLE_KIND), pointer, dimension(:)      :: param_8 => NULL() !< param
     logical, pointer, dimension(:)    :: flag => NULL() !< flag
     integer                           :: atm_tr_index = 0 !< atm_tr_index
     character(len=128)                :: ice_restart_file = ' ' !< ice_restart_file
@@ -142,7 +151,7 @@ module coupler_types_mod
     logical                           :: use_atm_pressure !< use_atm_pressure
     logical                           :: use_10m_wind_speed !< use_10m_wind_speed
     logical                           :: pass_through_ice !< pass_through_ice
-    real                              :: mol_wt = 0.0 !< mol_wt
+    real(DOUBLE_KIND)                  :: mol_wt = 0.0 !< mol_wt
   end type coupler_2d_field_type
 
   type, public    :: coupler_2d_bc_type
@@ -156,7 +165,8 @@ module coupler_types_mod
   ! 1-d fields
   type, public    :: coupler_1d_values_type
     character(len=48)           :: name = ' '  !< The diagnostic name for this array
-    real, pointer, dimension(:) :: values => NULL() !< The pointer to the array of values
+    real(FLOAT_KIND), pointer, dimension(:) :: values_4 => NULL() !< The pointer to the array of values
+    real(DOUBLE_KIND), pointer, dimension(:) :: values_8 => NULL() !< The pointer to the array of values
     logical                     :: mean = .true. !< mean
     logical                     :: override = .false. !< override
     integer                     :: id_diag = 0 !< The diagnostic id for this array
@@ -173,7 +183,8 @@ module coupler_types_mod
     type(coupler_1d_values_type), pointer, dimension(:)   :: field => NULL() !< field
     character(len=128)             :: flux_type = ' ' !< flux_type
     character(len=128)             :: implementation = ' ' !< implementation
-    real, pointer, dimension(:)    :: param => NULL() !< param
+    real(FLOAT_KIND), pointer, dimension(:)    :: param_4 => NULL() !< param
+    real(DOUBLE_KIND), pointer, dimension(:)   :: param_8 => NULL() !< param
     logical, pointer, dimension(:) :: flag => NULL() !< flag
     integer                        :: atm_tr_index = 0 !< atm_tr_index
     character(len=128)             :: ice_restart_file = ' ' !< ice_restart_file
@@ -181,7 +192,7 @@ module coupler_types_mod
     logical                        :: use_atm_pressure !< use_atm_pressure
     logical                        :: use_10m_wind_speed !< use_10m_wind_speed
     logical                        :: pass_through_ice !< pass_through_ice
-    real                           :: mol_wt = 0.0 !< mol_wt
+    real(DOUBLE_KIND)               :: mol_wt = 0.0 !< mol_wt
   end type coupler_1d_field_type
 
   type, public    :: coupler_1d_bc_type
@@ -233,29 +244,34 @@ module coupler_types_mod
   !> @brief This is the interface to redistribute the field data from one coupler_bc_type
   !! to another of the same rank and global size, but a different decomposition.
   interface coupler_type_redistribute_data
-    module procedure CT_redistribute_data_2d, CT_redistribute_data_3d
+    module procedure CT_redistribute_data_2d_r4, CT_redistribute_data_3d_r4
+    module procedure CT_redistribute_data_2d_r8, CT_redistribute_data_3d_r8
   end interface coupler_type_redistribute_data
 
   !> @brief This is the interface to rescale the field data in a coupler_bc_type.
   interface coupler_type_rescale_data
-    module procedure CT_rescale_data_2d, CT_rescale_data_3d
+    module procedure CT_rescale_data_2d_r4, CT_rescale_data_3d_r4
+    module procedure CT_rescale_data_2d_r8, CT_rescale_data_3d_r8
   end interface coupler_type_rescale_data
 
   !> @brief This is the interface to increment the field data from one coupler_bc_type
   !! with the data from another.  Both must have the same horizontal size and
   !! decomposition, but a 2d type may be incremented by a 2d or 3d type
   interface coupler_type_increment_data
-    module procedure CT_increment_data_2d_2d, CT_increment_data_3d_3d, CT_increment_data_2d_3d
+    module procedure CT_increment_data_2d_2d_r4, CT_increment_data_3d_3d_r4, CT_increment_data_2d_3d_r4
+    module procedure CT_increment_data_2d_2d_r8, CT_increment_data_3d_3d_r8, CT_increment_data_2d_3d_r8
   end interface coupler_type_increment_data
 
   !> @brief This is the interface to extract a field in a coupler_bc_type into an array.
   interface coupler_type_extract_data
-    module procedure CT_extract_data_2d, CT_extract_data_3d, CT_extract_data_3d_2d
+    module procedure CT_extract_data_2d_r4, CT_extract_data_3d_r4, CT_extract_data_3d_2d_r4
+    module procedure CT_extract_data_2d_r8, CT_extract_data_3d_r8, CT_extract_data_3d_2d_r8
   end interface coupler_type_extract_data
 
   !> @brief This is the interface to set a field in a coupler_bc_type from an array.
   interface coupler_type_set_data
-    module procedure CT_set_data_2d, CT_set_data_3d, CT_set_data_2d_3d
+    module procedure CT_set_data_2d_r4, CT_set_data_3d_r4, CT_set_data_2d_3d_r4
+    module procedure CT_set_data_2d_r8, CT_set_data_3d_r8, CT_set_data_2d_3d_r8
   end interface coupler_type_set_data
 
   !> @brief This is the interface to set diagnostics for the arrays in a coupler_bc_type.
@@ -265,26 +281,31 @@ module coupler_types_mod
 
   !> @brief This is the interface to write out checksums for the elements of a coupler_bc_type.
   interface coupler_type_write_chksums
-    module procedure CT_write_chksums_2d, CT_write_chksums_3d
+    module procedure CT_write_chksums_2d_r4, CT_write_chksums_3d_r4
+    module procedure CT_write_chksums_2d_r8, CT_write_chksums_3d_r8
   end interface coupler_type_write_chksums
 
   !> @brief This is the interface to write out diagnostics of the arrays in a coupler_bc_type.
   interface coupler_type_send_data
-    module procedure CT_send_data_2d, CT_send_data_3d
+    module procedure CT_send_data_2d_r4, CT_send_data_3d_r4
+    module procedure CT_send_data_2d_r8, CT_send_data_3d_r8
   end interface coupler_type_send_data
 
   !> @brief This is the interface to override the values of the arrays in a coupler_bc_type.
   interface coupler_type_data_override
-    module procedure CT_data_override_2d, CT_data_override_3d
+    module procedure CT_data_override_2d_r4, CT_data_override_3d_r4
+    module procedure CT_data_override_2d_r8, CT_data_override_3d_r8
   end interface coupler_type_data_override
 
   !> @brief This is the interface to register the fields in a coupler_bc_type to be saved
   !! in restart files.
   interface coupler_type_register_restarts
-    module procedure mpp_io_CT_register_restarts_2d, mpp_io_CT_register_restarts_3d
-    module procedure mpp_io_CT_register_restarts_to_file_2d, mpp_io_CT_register_restarts_to_file_3d
-
-    module procedure CT_register_restarts_2d, CT_register_restarts_3d
+    module procedure mpp_io_CT_register_restarts_2d_r4, mpp_io_CT_register_restarts_3d_r4
+    module procedure mpp_io_CT_register_restarts_2d_r8, mpp_io_CT_register_restarts_3d_r8
+    module procedure mpp_io_CT_register_restarts_to_file_2d_r4, mpp_io_CT_register_restarts_to_file_3d_r4
+    module procedure mpp_io_CT_register_restarts_to_file_2d_r8, mpp_io_CT_register_restarts_to_file_3d_r8
+    module procedure CT_register_restarts_2d_r4, CT_register_restarts_3d_r4
+    module procedure CT_register_restarts_2d_r8, CT_register_restarts_3d_r8
   end interface coupler_type_register_restarts
 
   !> @brief This is the interface to read in the fields in a coupler_bc_type that have
@@ -301,7 +322,10 @@ module coupler_types_mod
 
   !> @brief This is the interface to deallocate any data associated with a coupler_bc_type.
   interface coupler_type_destructor
-    module procedure CT_destructor_1d, CT_destructor_2d, CT_destructor_3d
+    module procedure CT_destructor_1d_r4, CT_destructor_2d_r4
+    module procedure CT_destructor_3d_r4
+    module procedure CT_destructor_1d_r8, CT_destructor_2d_r8
+    module procedure CT_destructor_3d_r8
   end interface coupler_type_destructor
 
 contains
@@ -542,7 +566,8 @@ contains
   !! @throw FATAL, "Disordered j-dimension index bound list"
   !! @throw FATAL, "var%bc already assocated"
   !! @throw FATAL, "var%bc('n')%field already associated"
-  !! @throw FATAL, "var%bc('n')%field('m')%values already associated"
+  !! @throw FATAL, "var%bc('n')%field('m')%values_4 already associated"
+  !! @throw FATAL, "var%bc('n')%field('m')%values_8 already associated"
   subroutine CT_spawn_1d_2d(var_in, var, idim, jdim, suffix, as_needed)
     type(coupler_1d_bc_type), intent(in)    :: var_in  !< structure from which to copy information
     type(coupler_2d_bc_type), intent(inout) :: var     !< structure into which to copy information
@@ -616,14 +641,21 @@ contains
           var%bc(n)%field(m)%units = var_in%bc(n)%field(m)%units
           var%bc(n)%field(m)%may_init = var_in%bc(n)%field(m)%may_init
           var%bc(n)%field(m)%mean = var_in%bc(n)%field(m)%mean
-          if (associated(var%bc(n)%field(m)%values)) then
+          if (associated(var%bc(n)%field(m)%values_4)) then
             write (error_msg, *) trim(error_header),&
-                & ' var%bc(', n, ')%field(', m, ')%values already associated'
+                & ' var%bc(', n, ')%field(', m, ')%values_4 already associated'
+            call mpp_error(FATAL, trim(error_msg))
+          endif
+          if (associated(var%bc(n)%field(m)%values_8)) then
+            write (error_msg, *) trim(error_header),&
+                & ' var%bc(', n, ')%field(', m, ')%values_8 already associated'
             call mpp_error(FATAL, trim(error_msg))
           endif
           ! Note that this may be allocating a zero-sized array, which is legal in Fortran.
-          allocate ( var%bc(n)%field(m)%values(var%isd:var%ied,var%jsd:var%jed) )
-          var%bc(n)%field(m)%values(:,:) = 0.0
+          allocate ( var%bc(n)%field(m)%values_4(var%isd:var%ied,var%jsd:var%jed) )
+          allocate ( var%bc(n)%field(m)%values_8(var%isd:var%ied,var%jsd:var%jed) )
+          var%bc(n)%field(m)%values_4(:,:) = 0.0
+          var%bc(n)%field(m)%values_8(:,:) = 0.0
         enddo
       enddo
     endif
@@ -637,7 +669,8 @@ contains
   !! @throw FATAL, "Disordered j-dimension index bound list"
   !! @throw FATAL, "var%bc already assocated"
   !! @throw FATAL, "var%bc('n')%field already associated"
-  !! @throw FATAL, "var%bc('n')%field('m')%values already associated"
+  !! @throw FATAL, "var%bc('n')%field('m')%values_4 already associated"
+  !! @throw FATAL, "var%bc('n')%field('m')%values_8 already associated"
   subroutine CT_spawn_1d_3d(var_in, var, idim, jdim, kdim, suffix, as_needed)
     type(coupler_1d_bc_type), intent(in)    :: var_in  !< structure from which to copy information
     type(coupler_3d_bc_type), intent(inout) :: var     !< structure into which to copy information
@@ -720,13 +753,19 @@ contains
           var%bc(n)%field(m)%units = var_in%bc(n)%field(m)%units
           var%bc(n)%field(m)%may_init = var_in%bc(n)%field(m)%may_init
           var%bc(n)%field(m)%mean = var_in%bc(n)%field(m)%mean
-          if (associated(var%bc(n)%field(m)%values)) then
-            write (error_msg, *) trim(error_header), ' var%bc(', n, ')%field(', m, ')%values already associated'
+          if (associated(var%bc(n)%field(m)%values_4)) then
+            write (error_msg, *) trim(error_header), ' var%bc(', n, ')%field(', m, ')%values_4 already associated'
+            call mpp_error(FATAL, trim(error_msg))
+          endif
+          if (associated(var%bc(n)%field(m)%values_8)) then
+            write (error_msg, *) trim(error_header), ' var%bc(', n, ')%field(', m, ')%values_8 already associated'
             call mpp_error(FATAL, trim(error_msg))
           endif
           ! Note that this may be allocating a zero-sized array, which is legal in Fortran.
-          allocate ( var%bc(n)%field(m)%values(var%isd:var%ied,var%jsd:var%jed,var%ks:var%ke) )
-          var%bc(n)%field(m)%values(:,:,:) = 0.0
+          allocate ( var%bc(n)%field(m)%values_4(var%isd:var%ied,var%jsd:var%jed,var%ks:var%ke) )
+          allocate ( var%bc(n)%field(m)%values_8(var%isd:var%ied,var%jsd:var%jed,var%ks:var%ke) )
+          var%bc(n)%field(m)%values_4(:,:,:) = 0.0
+          var%bc(n)%field(m)%values_8(:,:,:) = 0.0
         enddo
       enddo
     endif
@@ -741,7 +780,8 @@ contains
   !! @throw FATAL, "Disordered j-dimension index bound list"
   !! @throw FATAL, "var%bc already assocated"
   !! @throw FATAL, "var%bc('n')%field already associated"
-  !! @throw FATAL, "var%bc('n')%field('m')%values already associated"
+  !! @throw FATAL, "var%bc('n')%field('m')%values_4 already associated"
+  !! @throw FATAL, "var%bc('n')%field('m')%values_8 already associated"
   subroutine CT_spawn_2d_2d(var_in, var, idim, jdim, suffix, as_needed)
     type(coupler_2d_bc_type), intent(in)    :: var_in  !< structure from which to copy information
     type(coupler_2d_bc_type), intent(inout) :: var     !< structure into which to copy information
@@ -815,13 +855,19 @@ contains
           var%bc(n)%field(m)%units = var_in%bc(n)%field(m)%units
           var%bc(n)%field(m)%may_init = var_in%bc(n)%field(m)%may_init
           var%bc(n)%field(m)%mean = var_in%bc(n)%field(m)%mean
-          if (associated(var%bc(n)%field(m)%values)) then
-            write (error_msg, *) trim(error_header), ' var%bc(', n, ')%field(', m, ')%values already associated'
+          if (associated(var%bc(n)%field(m)%values_4)) then
+            write (error_msg, *) trim(error_header), ' var%bc(', n, ')%field(', m, ')%values_4 already associated'
+            call mpp_error(FATAL, trim(error_msg))
+          endif
+          if (associated(var%bc(n)%field(m)%values_8)) then
+            write (error_msg, *) trim(error_header), ' var%bc(', n, ')%field(', m, ')%values_8 already associated'
             call mpp_error(FATAL, trim(error_msg))
           endif
           ! Note that this may be allocating a zero-sized array, which is legal in Fortran.
-          allocate ( var%bc(n)%field(m)%values(var%isd:var%ied,var%jsd:var%jed) )
-          var%bc(n)%field(m)%values(:,:) = 0.0
+          allocate ( var%bc(n)%field(m)%values_4(var%isd:var%ied,var%jsd:var%jed) )
+          allocate ( var%bc(n)%field(m)%values_8(var%isd:var%ied,var%jsd:var%jed) )
+          var%bc(n)%field(m)%values_4(:,:) = 0.0
+          var%bc(n)%field(m)%values_8(:,:) = 0.0
         enddo
       enddo
     endif
@@ -836,7 +882,8 @@ contains
   !! @throw FATAL, "Disordered k-dimension index bound list"
   !! @throw FATAL, "var%bc already assocated"
   !! @throw FATAL, "var%bc('n')%field already associated"
-  !! @throw FATAL, "var%bc('n')%field('m')%values already associated"
+  !! @throw FATAL, "var%bc('n')%field('m')%values_4 already associated"
+  !! @throw FATAL, "var%bc('n')%field('m')%values_8 already associated"
   subroutine CT_spawn_2d_3d(var_in, var, idim, jdim, kdim, suffix, as_needed)
     type(coupler_2d_bc_type), intent(in)    :: var_in  !< structure from which to copy information
     type(coupler_3d_bc_type), intent(inout) :: var     !< structure into which to copy information
@@ -918,13 +965,19 @@ contains
           var%bc(n)%field(m)%units = var_in%bc(n)%field(m)%units
           var%bc(n)%field(m)%may_init = var_in%bc(n)%field(m)%may_init
           var%bc(n)%field(m)%mean = var_in%bc(n)%field(m)%mean
-          if (associated(var%bc(n)%field(m)%values)) then
-            write (error_msg, *) trim(error_header), ' var%bc(', n, ')%field(', m, ')%values already associated'
+          if (associated(var%bc(n)%field(m)%values_4)) then
+            write (error_msg, *) trim(error_header), ' var%bc(', n, ')%field(', m, ')%values_4 already associated'
+            call mpp_error(FATAL, trim(error_msg))
+          endif
+          if (associated(var%bc(n)%field(m)%values_8)) then
+            write (error_msg, *) trim(error_header), ' var%bc(', n, ')%field(', m, ')%values_8 already associated'
             call mpp_error(FATAL, trim(error_msg))
           endif
           ! Note that this may be allocating a zero-sized array, which is legal in Fortran.
-          allocate ( var%bc(n)%field(m)%values(var%isd:var%ied,var%jsd:var%jed,var%ks:var%ke) )
-          var%bc(n)%field(m)%values(:,:,:) = 0.0
+          allocate ( var%bc(n)%field(m)%values_4(var%isd:var%ied,var%jsd:var%jed,var%ks:var%ke) )
+          allocate ( var%bc(n)%field(m)%values_8(var%isd:var%ied,var%jsd:var%jed,var%ks:var%ke) )
+          var%bc(n)%field(m)%values_4(:,:,:) = 0.0
+          var%bc(n)%field(m)%values_8(:,:,:) = 0.0
         enddo
       enddo
     endif
@@ -938,7 +991,8 @@ contains
   !! @throw FATAL, "Disordered j-dimension index bound list"
   !! @throw FATAL, "var%bc already assocated"
   !! @throw FATAL, "var%bc('n')%field already associated"
-  !! @throw FATAL, "var%bc('n')%field('m')%values already associated"
+  !! @throw FATAL, "var%bc('n')%field('m')%values_4 already associated"
+  !! @throw FATAL, "var%bc('n')%field('m')%values_8 already associated"
   subroutine CT_spawn_3d_2d(var_in, var, idim, jdim, suffix, as_needed)
     type(coupler_3d_bc_type), intent(in)    :: var_in  !< structure from which to copy information
     type(coupler_2d_bc_type), intent(inout) :: var     !< structure into which to copy information
@@ -1012,13 +1066,19 @@ contains
           var%bc(n)%field(m)%units = var_in%bc(n)%field(m)%units
           var%bc(n)%field(m)%may_init = var_in%bc(n)%field(m)%may_init
           var%bc(n)%field(m)%mean = var_in%bc(n)%field(m)%mean
-          if (associated(var%bc(n)%field(m)%values)) then
-            write (error_msg, *) trim(error_header), ' var%bc(', n, ')%field(', m, ')%values already associated'
+          if (associated(var%bc(n)%field(m)%values_4)) then
+            write (error_msg, *) trim(error_header), ' var%bc(', n, ')%field(', m, ')%values_4 already associated'
+            call mpp_error(FATAL, trim(error_msg))
+          endif
+          if (associated(var%bc(n)%field(m)%values_8)) then
+            write (error_msg, *) trim(error_header), ' var%bc(', n, ')%field(', m, ')%values_8 already associated'
             call mpp_error(FATAL, trim(error_msg))
           endif
           ! Note that this may be allocating a zero-sized array, which is legal in Fortran.
-          allocate ( var%bc(n)%field(m)%values(var%isd:var%ied,var%jsd:var%jed) )
-          var%bc(n)%field(m)%values(:,:) = 0.0
+          allocate ( var%bc(n)%field(m)%values_4(var%isd:var%ied,var%jsd:var%jed) )
+          allocate ( var%bc(n)%field(m)%values_8(var%isd:var%ied,var%jsd:var%jed) )
+          var%bc(n)%field(m)%values_4(:,:) = 0.0
+          var%bc(n)%field(m)%values_8(:,:) = 0.0
         enddo
       enddo
     endif
@@ -1033,7 +1093,8 @@ contains
   !! @throw FATAL, "Disordered k-dimension index bound list"
   !! @throw FATAL, "var%bc already assocated"
   !! @throw FATAL, "var%bc('n')%field already associated"
-  !! @throw FATAL, "var%bc('n')%field('m')%values already associated"
+  !! @throw FATAL, "var%bc('n')%field('m')%values_4 already associated"
+  !! @throw FATAL, "var%bc('n')%field('m')%values_8 already associated"
   subroutine CT_spawn_3d_3d(var_in, var, idim, jdim, kdim, suffix, as_needed)
     type(coupler_3d_bc_type), intent(in)    :: var_in  !< structure from which to copy information
     type(coupler_3d_bc_type), intent(inout) :: var     !< structure into which to copy information
@@ -1114,14 +1175,20 @@ contains
           var%bc(n)%field(m)%units = var_in%bc(n)%field(m)%units
           var%bc(n)%field(m)%may_init = var_in%bc(n)%field(m)%may_init
           var%bc(n)%field(m)%mean = var_in%bc(n)%field(m)%mean
-          if (associated(var%bc(n)%field(m)%values)) then
-            write (error_msg, *) trim(error_header), ' var%bc(', n, ')%field(', m, ')%values already associated'
+          if (associated(var%bc(n)%field(m)%values_4)) then
+            write (error_msg, *) trim(error_header), ' var%bc(', n, ')%field(', m, ')%values_4 already associated'
+            call mpp_error(FATAL, trim(error_msg))
+          endif
+          if (associated(var%bc(n)%field(m)%values_8)) then
+            write (error_msg, *) trim(error_header), ' var%bc(', n, ')%field(', m, ')%values_8 already associated'
             call mpp_error(FATAL, trim(error_msg))
           endif
 
           ! Note that this may be allocating a zero-sized array, which is legal in Fortran.
-          allocate ( var%bc(n)%field(m)%values(var%isd:var%ied,var%jsd:var%jed,var%ks:var%ke) )
-          var%bc(n)%field(m)%values(:,:,:) = 0.0
+          allocate ( var%bc(n)%field(m)%values_4(var%isd:var%ied,var%jsd:var%jed,var%ks:var%ke) )
+          allocate ( var%bc(n)%field(m)%values_8(var%isd:var%ied,var%jsd:var%jed,var%ks:var%ke) )
+          var%bc(n)%field(m)%values_4(:,:,:) = 0.0
+          var%bc(n)%field(m)%values_8(:,:,:) = 0.0
         enddo
       enddo
     endif
@@ -1209,10 +1276,17 @@ contains
         if (present(field_index)) then
           if (m /= field_index) cycle
         endif
-        if ( associated(var%bc(n)%field(m)%values) ) then
+        if ( associated(var%bc(n)%field(m)%values_4) ) then
           do j=var%jsc-halo,var%jec+halo
             do i=var%isc-halo,var%iec+halo
-              var%bc(n)%field(m)%values(i,j) = var_in%bc(n)%field(m)%values(i+i_off,j+j_off)
+              var%bc(n)%field(m)%values_4(i,j) = var_in%bc(n)%field(m)%values_4(i+i_off,j+j_off)
+            enddo
+          enddo
+        endif
+        if ( associated(var%bc(n)%field(m)%values_8) ) then
+          do j=var%jsc-halo,var%jec+halo
+            do i=var%isc-halo,var%iec+halo
+              var%bc(n)%field(m)%values_8(i,j) = var_in%bc(n)%field(m)%values_8(i+i_off,j+j_off)
             enddo
           enddo
         endif
@@ -1309,11 +1383,20 @@ contains
         if (present(field_index)) then
           if (m /= field_index) cycle
         endif
-        if ( associated(var%bc(n)%field(m)%values) ) then
+        if ( associated(var%bc(n)%field(m)%values_4) ) then
           do k=var%ks,var%ke
             do j=var%jsc-halo,var%jec+halo
               do i=var%isc-halo,var%iec+halo
-                var%bc(n)%field(m)%values(i,j,k) = var_in%bc(n)%field(m)%values(i+i_off,j+j_off,k+k_off)
+                var%bc(n)%field(m)%values_4(i,j,k) = var_in%bc(n)%field(m)%values_4(i+i_off,j+j_off,k+k_off)
+              enddo
+            enddo
+          enddo
+        endif
+        if ( associated(var%bc(n)%field(m)%values_8) ) then
+          do k=var%ks,var%ke
+            do j=var%jsc-halo,var%jec+halo
+              do i=var%isc-halo,var%iec+halo
+                var%bc(n)%field(m)%values_8(i,j,k) = var_in%bc(n)%field(m)%values_8(i+i_off,j+j_off,k+k_off)
               enddo
             enddo
           enddo
@@ -1410,7 +1493,7 @@ contains
         if (present(field_index)) then
           if (m /= field_index) cycle
         endif
-        if ( associated(var%bc(n)%field(m)%values) ) then
+        if ( associated(var%bc(n)%field(m)%values_4) ) then
           ks = var%ks
           if (present(ind3_start)) ks = max(ks, ind3_start)
           ke = var%ke
@@ -1418,7 +1501,20 @@ contains
           do k=ks,ke
             do j=var%jsc-halo,var%jec+halo
               do i=var%isc-halo,var%iec+halo
-                var%bc(n)%field(m)%values(i,j,k) = var_in%bc(n)%field(m)%values(i+i_off,j+j_off)
+                var%bc(n)%field(m)%values_4(i,j,k) = var_in%bc(n)%field(m)%values_4(i+i_off,j+j_off)
+              enddo
+            enddo
+          enddo
+        endif
+        if ( associated(var%bc(n)%field(m)%values_8) ) then
+          ks = var%ks
+          if (present(ind3_start)) ks = max(ks, ind3_start)
+          ke = var%ke
+          if (present(ind3_end)) ke = max(ke, ind3_end)
+          do k=ks,ke
+            do j=var%jsc-halo,var%jec+halo
+              do i=var%isc-halo,var%iec+halo
+                var%bc(n)%field(m)%values_8(i,j,k) = var_in%bc(n)%field(m)%values_8(i+i_off,j+j_off)
               enddo
             enddo
           enddo
@@ -1435,14 +1531,14 @@ contains
   !!
   !! @throw FATAL, "Mismatch in num_bcs in CT_copy_data_2d."
   !! @throw FATAL, "Mismatch in the total number of fields in CT_redistribute_data_2d."
-  subroutine CT_redistribute_data_2d(var_in, domain_in, var_out, domain_out, complete)
+  subroutine CT_redistribute_data_2d_r4(var_in, domain_in, var_out, domain_out, complete)
     type(coupler_2d_bc_type), intent(in)    :: var_in     !< BC_type structure with the data to copy (intent in)
     type(domain2D),           intent(in)    :: domain_in  !< The FMS domain for the input structure
     type(coupler_2d_bc_type), intent(inout) :: var_out    !< The recipient BC_type structure (data intent out)
     type(domain2D),           intent(in)    :: domain_out !< The FMS domain for the output structure
     logical,        optional, intent(in)    :: complete   !< If true, complete the updates
 
-    real, pointer, dimension(:,:) :: null_ptr2D => NULL()
+    real(FLOAT_KIND), pointer, dimension(:,:) :: null_ptr2D => NULL()
     logical :: do_in, do_out, do_complete
     integer :: m, n, fc, fc_in, fc_out
 
@@ -1457,7 +1553,7 @@ contains
     if (do_in) then
       do n = 1, var_in%num_bcs
         do m = 1, var_in%bc(n)%num_fields
-          if (associated(var_in%bc(n)%field(m)%values)) fc_in = fc_in + 1
+          if (associated(var_in%bc(n)%field(m)%values_4)) fc_in = fc_in + 1
         enddo
       enddo
     endif
@@ -1465,7 +1561,7 @@ contains
     if (do_out) then
       do n = 1, var_out%num_bcs
         do m = 1, var_out%bc(n)%num_fields
-          if (associated(var_out%bc(n)%field(m)%values)) fc_out = fc_out + 1
+          if (associated(var_out%bc(n)%field(m)%values_4)) fc_out = fc_out + 1
         enddo
       enddo
     endif
@@ -1473,9 +1569,9 @@ contains
 
     if (do_in .and. do_out) then
       if (var_in%num_bcs /= var_out%num_bcs) call mpp_error(FATAL,&
-          & "Mismatch in num_bcs in CT_copy_data_2d.")
+          & "Mismatch in num_bcs in CT_copy_data_2d_r4.")
       if (fc_in /= fc_out) call mpp_error(FATAL,&
-          & "Mismatch in the total number of fields in CT_redistribute_data_2d.")
+          & "Mismatch in the total number of fields in CT_redistribute_data_2d_r4.")
     endif
 
     if (.not.(do_in .or. do_out)) return
@@ -1484,14 +1580,14 @@ contains
     if (do_in .and. do_out) then
       do n = 1, var_in%num_bcs
         do m = 1, var_in%bc(n)%num_fields
-          if ( associated(var_in%bc(n)%field(m)%values) .neqv.&
-              & associated(var_out%bc(n)%field(m)%values) ) &
+          if ( associated(var_in%bc(n)%field(m)%values_4) .neqv.&
+              & associated(var_out%bc(n)%field(m)%values_4) ) &
               call mpp_error(FATAL,&
-              & "Mismatch in which fields are associated in CT_redistribute_data_2d.")
-          if ( associated(var_in%bc(n)%field(m)%values) ) then
+              & "Mismatch in which fields are associated in CT_redistribute_data_2d_r4.")
+          if ( associated(var_in%bc(n)%field(m)%values_4) ) then
             fc = fc + 1
-            call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values,&
-                & domain_out, var_out%bc(n)%field(m)%values,&
+            call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values_4,&
+                & domain_out, var_out%bc(n)%field(m)%values_4,&
                 & complete=(do_complete.and.(fc==fc_in)) )
           endif
         enddo
@@ -1499,9 +1595,9 @@ contains
     elseif (do_in) then
       do n = 1, var_in%num_bcs
         do m = 1, var_in%bc(n)%num_fields
-          if ( associated(var_in%bc(n)%field(m)%values) ) then
+          if ( associated(var_in%bc(n)%field(m)%values_4) ) then
             fc = fc + 1
-            call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values,&
+            call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values_4,&
                 & domain_out, null_ptr2D,&
                 & complete=(do_complete.and.(fc==fc_in)) )
           endif
@@ -1510,29 +1606,117 @@ contains
     elseif (do_out) then
       do n = 1, var_out%num_bcs
         do m = 1, var_out%bc(n)%num_fields
-          if ( associated(var_out%bc(n)%field(m)%values) ) then
+          if ( associated(var_out%bc(n)%field(m)%values_4) ) then
             fc = fc + 1
             call mpp_redistribute(domain_in, null_ptr2D,&
-                & domain_out, var_out%bc(n)%field(m)%values,&
+                & domain_out, var_out%bc(n)%field(m)%values_4,&
                 & complete=(do_complete.and.(fc==fc_out)) )
           endif
         enddo
       enddo
     endif
-  end subroutine CT_redistribute_data_2d
+  end subroutine CT_redistribute_data_2d_r4
+
+
+  subroutine CT_redistribute_data_2d_r8(var_in, domain_in, var_out, domain_out, complete)
+    type(coupler_2d_bc_type), intent(in)    :: var_in     !< BC_type structure with the data to copy (intent in)
+    type(domain2D),           intent(in)    :: domain_in  !< The FMS domain for the input structure
+    type(coupler_2d_bc_type), intent(inout) :: var_out    !< The recipient BC_type structure (data intent out)
+    type(domain2D),           intent(in)    :: domain_out !< The FMS domain for the output structure
+    logical,        optional, intent(in)    :: complete   !< If true, complete the updates
+
+    real(DOUBLE_KIND), pointer, dimension(:,:) :: null_ptr2D => NULL()
+    logical :: do_in, do_out, do_complete
+    integer :: m, n, fc, fc_in, fc_out
+
+    do_complete = .true.
+    if (present(complete)) do_complete = complete
+
+    ! Figure out whether this PE has valid input or output fields or both.
+    do_in = var_in%set
+    do_out = var_out%set
+
+    fc_in = 0 ; fc_out = 0
+    if (do_in) then
+      do n = 1, var_in%num_bcs
+        do m = 1, var_in%bc(n)%num_fields
+          if (associated(var_in%bc(n)%field(m)%values_8)) fc_in = fc_in + 1
+        enddo
+      enddo
+    endif
+    if (fc_in == 0) do_in = .false.
+    if (do_out) then
+      do n = 1, var_out%num_bcs
+        do m = 1, var_out%bc(n)%num_fields
+          if (associated(var_out%bc(n)%field(m)%values_8)) fc_out = fc_out + 1
+        enddo
+      enddo
+    endif
+    if (fc_out == 0) do_out = .false.
+
+    if (do_in .and. do_out) then
+      if (var_in%num_bcs /= var_out%num_bcs) call mpp_error(FATAL,&
+          & "Mismatch in num_bcs in CT_copy_data_2d_r8.")
+      if (fc_in /= fc_out) call mpp_error(FATAL,&
+          & "Mismatch in the total number of fields in CT_redistribute_data_2d_r8.")
+    endif
+
+    if (.not.(do_in .or. do_out)) return
+
+    fc = 0
+    if (do_in .and. do_out) then
+      do n = 1, var_in%num_bcs
+        do m = 1, var_in%bc(n)%num_fields
+          if ( associated(var_in%bc(n)%field(m)%values_8) .neqv.&
+              & associated(var_out%bc(n)%field(m)%values_8) ) &
+              call mpp_error(FATAL,&
+              & "Mismatch in which fields are associated in CT_redistribute_data_2d_r8.")
+          if ( associated(var_in%bc(n)%field(m)%values_8) ) then
+            fc = fc + 1
+            call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values_8,&
+                & domain_out, var_out%bc(n)%field(m)%values_8,&
+                & complete=(do_complete.and.(fc==fc_in)) )
+          endif
+        enddo
+      enddo
+    elseif (do_in) then
+      do n = 1, var_in%num_bcs
+        do m = 1, var_in%bc(n)%num_fields
+          if ( associated(var_in%bc(n)%field(m)%values_8) ) then
+            fc = fc + 1
+            call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values_8,&
+                & domain_out, null_ptr2D,&
+                & complete=(do_complete.and.(fc==fc_in)) )
+          endif
+        enddo
+      enddo
+    elseif (do_out) then
+      do n = 1, var_out%num_bcs
+        do m = 1, var_out%bc(n)%num_fields
+          if ( associated(var_out%bc(n)%field(m)%values_8) ) then
+            fc = fc + 1
+            call mpp_redistribute(domain_in, null_ptr2D,&
+                & domain_out, var_out%bc(n)%field(m)%values_8,&
+                & complete=(do_complete.and.(fc==fc_out)) )
+          endif
+        enddo
+      enddo
+    endif
+  end subroutine CT_redistribute_data_2d_r8
+
 
   !> @brief Redistributes the data in all elements of one coupler_2d_bc_type
   !!
   !! Redistributes the data in all elements of one coupler_2d_bc_type into another, which may be on
   !! different processors with a different decomposition.
-  subroutine CT_redistribute_data_3d(var_in, domain_in, var_out, domain_out, complete)
+  subroutine CT_redistribute_data_3d_r4(var_in, domain_in, var_out, domain_out, complete)
     type(coupler_3d_bc_type), intent(in)    :: var_in     !< BC_type structure with the data to copy (intent in)
     type(domain2D),           intent(in)    :: domain_in  !< The FMS domain for the input structure
     type(coupler_3d_bc_type), intent(inout) :: var_out    !< The recipient BC_type structure (data intent out)
     type(domain2D),           intent(in)    :: domain_out !< The FMS domain for the output structure
     logical,        optional, intent(in)    :: complete   !< If true, complete the updates
 
-    real, pointer, dimension(:,:,:) :: null_ptr3D => NULL()
+    real(FLOAT_KIND), pointer, dimension(:,:,:) :: null_ptr3D => NULL()
     logical :: do_in, do_out, do_complete
     integer :: m, n, fc, fc_in, fc_out
 
@@ -1548,7 +1732,7 @@ contains
     if (do_in) then
       do n = 1, var_in%num_bcs
         do m = 1, var_in%bc(n)%num_fields
-          if (associated(var_in%bc(n)%field(m)%values)) fc_in = fc_in + 1
+          if (associated(var_in%bc(n)%field(m)%values_4)) fc_in = fc_in + 1
         enddo
       enddo
     endif
@@ -1556,7 +1740,7 @@ contains
     if (do_out) then
       do n = 1, var_out%num_bcs
         do m = 1, var_out%bc(n)%num_fields
-          if (associated(var_out%bc(n)%field(m)%values)) fc_out = fc_out + 1
+          if (associated(var_out%bc(n)%field(m)%values_4)) fc_out = fc_out + 1
         enddo
       enddo
     endif
@@ -1564,9 +1748,9 @@ contains
 
     if (do_in .and. do_out) then
       if (var_in%num_bcs /= var_out%num_bcs) call mpp_error(FATAL,&
-          & "Mismatch in num_bcs in CT_copy_data_3d.")
+          & "Mismatch in num_bcs in CT_copy_data_3d_r4.")
       if (fc_in /= fc_out) call mpp_error(FATAL,&
-          & "Mismatch in the total number of fields in CT_redistribute_data_3d.")
+          & "Mismatch in the total number of fields in CT_redistribute_data_3d_r4.")
     endif
 
     if (.not.(do_in .or. do_out)) return
@@ -1575,14 +1759,14 @@ contains
     if (do_in .and. do_out) then
       do n = 1, var_in%num_bcs
         do m = 1, var_in%bc(n)%num_fields
-          if ( associated(var_in%bc(n)%field(m)%values) .neqv.&
-              & associated(var_out%bc(n)%field(m)%values) )&
+          if ( associated(var_in%bc(n)%field(m)%values_4) .neqv.&
+              & associated(var_out%bc(n)%field(m)%values_4) )&
               & call mpp_error(FATAL,&
-              & "Mismatch in which fields are associated in CT_redistribute_data_3d.")
-          if ( associated(var_in%bc(n)%field(m)%values) ) then
+              & "Mismatch in which fields are associated in CT_redistribute_data_3d_r4.")
+          if ( associated(var_in%bc(n)%field(m)%values_4) ) then
             fc = fc + 1
-            call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values,&
-                & domain_out, var_out%bc(n)%field(m)%values,&
+            call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values_4,&
+                & domain_out, var_out%bc(n)%field(m)%values_4,&
                 & complete=(do_complete.and.(fc==fc_in)) )
           endif
         enddo
@@ -1590,9 +1774,9 @@ contains
     elseif (do_in) then
       do n = 1, var_in%num_bcs
         do m = 1, var_in%bc(n)%num_fields
-          if ( associated(var_in%bc(n)%field(m)%values) ) then
+          if ( associated(var_in%bc(n)%field(m)%values_4) ) then
             fc = fc + 1
-            call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values,&
+            call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values_4,&
                 & domain_out, null_ptr3D,&
                 & complete=(do_complete.and.(fc==fc_in)) )
           endif
@@ -1601,26 +1785,114 @@ contains
     elseif (do_out) then
       do n = 1, var_out%num_bcs
         do m = 1, var_out%bc(n)%num_fields
-          if ( associated(var_out%bc(n)%field(m)%values) ) then
+          if ( associated(var_out%bc(n)%field(m)%values_4) ) then
             fc = fc + 1
             call mpp_redistribute(domain_in, null_ptr3D,&
-                & domain_out, var_out%bc(n)%field(m)%values,&
+                & domain_out, var_out%bc(n)%field(m)%values_4,&
                 & complete=(do_complete.and.(fc==fc_out)) )
           endif
         enddo
       enddo
     endif
-  end subroutine CT_redistribute_data_3d
+  end subroutine CT_redistribute_data_3d_r4
+
+
+  subroutine CT_redistribute_data_3d_r8(var_in, domain_in, var_out, domain_out, complete)
+    type(coupler_3d_bc_type), intent(in)    :: var_in     !< BC_type structure with the data to copy (intent in)
+    type(domain2D),           intent(in)    :: domain_in  !< The FMS domain for the input structure
+    type(coupler_3d_bc_type), intent(inout) :: var_out    !< The recipient BC_type structure (data intent out)
+    type(domain2D),           intent(in)    :: domain_out !< The FMS domain for the output structure
+    logical,        optional, intent(in)    :: complete   !< If true, complete the updates
+
+    real(DOUBLE_KIND), pointer, dimension(:,:,:) :: null_ptr3D => NULL()
+    logical :: do_in, do_out, do_complete
+    integer :: m, n, fc, fc_in, fc_out
+
+    do_complete = .true.
+    if (present(complete)) do_complete = complete
+
+    ! Figure out whether this PE has valid input or output fields or both.
+    do_in = var_in%set
+    do_out = var_out%set
+
+    fc_in = 0
+    fc_out = 0
+    if (do_in) then
+      do n = 1, var_in%num_bcs
+        do m = 1, var_in%bc(n)%num_fields
+          if (associated(var_in%bc(n)%field(m)%values_8)) fc_in = fc_in + 1
+        enddo
+      enddo
+    endif
+    if (fc_in == 0) do_in = .false.
+    if (do_out) then
+      do n = 1, var_out%num_bcs
+        do m = 1, var_out%bc(n)%num_fields
+          if (associated(var_out%bc(n)%field(m)%values_8)) fc_out = fc_out + 1
+        enddo
+      enddo
+    endif
+    if (fc_out == 0) do_out = .false.
+
+    if (do_in .and. do_out) then
+      if (var_in%num_bcs /= var_out%num_bcs) call mpp_error(FATAL,&
+          & "Mismatch in num_bcs in CT_copy_data_3d_r8.")
+      if (fc_in /= fc_out) call mpp_error(FATAL,&
+          & "Mismatch in the total number of fields in CT_redistribute_data_3d_r8.")
+    endif
+
+    if (.not.(do_in .or. do_out)) return
+
+    fc = 0
+    if (do_in .and. do_out) then
+      do n = 1, var_in%num_bcs
+        do m = 1, var_in%bc(n)%num_fields
+          if ( associated(var_in%bc(n)%field(m)%values_8) .neqv.&
+              & associated(var_out%bc(n)%field(m)%values_8) )&
+              & call mpp_error(FATAL,&
+              & "Mismatch in which fields are associated in CT_redistribute_data_3d_r8.")
+          if ( associated(var_in%bc(n)%field(m)%values_8) ) then
+            fc = fc + 1
+            call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values_8,&
+                & domain_out, var_out%bc(n)%field(m)%values_8,&
+                & complete=(do_complete.and.(fc==fc_in)) )
+          endif
+        enddo
+      enddo
+    elseif (do_in) then
+      do n = 1, var_in%num_bcs
+        do m = 1, var_in%bc(n)%num_fields
+          if ( associated(var_in%bc(n)%field(m)%values_8) ) then
+            fc = fc + 1
+            call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values_8,&
+                & domain_out, null_ptr3D,&
+                & complete=(do_complete.and.(fc==fc_in)) )
+          endif
+        enddo
+      enddo
+    elseif (do_out) then
+      do n = 1, var_out%num_bcs
+        do m = 1, var_out%bc(n)%num_fields
+          if ( associated(var_out%bc(n)%field(m)%values_8) ) then
+            fc = fc + 1
+            call mpp_redistribute(domain_in, null_ptr3D,&
+                & domain_out, var_out%bc(n)%field(m)%values_8,&
+                & complete=(do_complete.and.(fc==fc_out)) )
+          endif
+        enddo
+      enddo
+    endif
+  end subroutine CT_redistribute_data_3d_r8
 
 
   !> @brief Rescales the fields in the fields in the elements of a coupler_2d_bc_type
   !!
   !! Rescales the fields in the elements of a coupler_2d_bc_type by multiplying by a factor scale.
   !! If scale is 0, this is a direct assignment to 0, so that NaNs will not persist.
-  subroutine CT_rescale_data_2d(var, scale, halo_size, bc_index, field_index,&
+  subroutine CT_rescale_data_2d_r4(var, scale, halo_size, bc_index, field_index,&
       & exclude_flux_type, only_flux_type, pass_through_ice)
     type(coupler_2d_bc_type),   intent(inout) :: var !< The BC_type structure whose fields are being rescaled
-    real,                       intent(in)    :: scale   !< A scaling factor to multiply fields by
+    real(FLOAT_KIND),           intent(in)    :: scale   !< A scaling factor to multiply fields by
     integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default or
                                                            !! the full arrays if scale is 0.
     integer,          optional, intent(in)    :: bc_index  !< The index of the boundary condition
@@ -1639,13 +1911,13 @@ contains
 
     if (present(bc_index)) then
       if (bc_index > var%num_bcs)&
-          & call mpp_error(FATAL, "CT_rescale_data_2d: bc_index is present and exceeds var%num_bcs.")
+          & call mpp_error(FATAL, "CT_rescale_data_2d_r4: bc_index is present and exceeds var%num_bcs.")
       if (present(field_index)) then ; if (field_index > var%bc(bc_index)%num_fields)&
-          & call mpp_error(FATAL, "CT_rescale_data_2d: field_index is present and exceeds num_fields for" //&
+          & call mpp_error(FATAL, "CT_rescale_data_2d_r4: field_index is present and exceeds num_fields for" //&
           & trim(var%bc(bc_index)%name) )
       endif
     elseif (present(field_index)) then
-      call mpp_error(FATAL, "CT_rescale_data_2d: bc_index must be present if field_index is present.")
+      call mpp_error(FATAL, "CT_rescale_data_2d_r4: bc_index must be present if field_index is present.")
     endif
 
     halo = 0
@@ -1661,9 +1933,9 @@ contains
     if (n2 >= n1) then
       ! A more consciencious implementation would include a more descriptive error messages.
       if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
-          & call mpp_error(FATAL, "CT_rescale_data_2d: Excessive i-direction halo size.")
+          & call mpp_error(FATAL, "CT_rescale_data_2d_r4: Excessive i-direction halo size.")
       if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
-          & call mpp_error(FATAL, "CT_rescale_data_2d: Excessive j-direction halo size.")
+          & call mpp_error(FATAL, "CT_rescale_data_2d_r4: Excessive j-direction halo size.")
     endif
 
     do n = n1, n2
@@ -1680,37 +1952,125 @@ contains
         if (present(field_index)) then
           if (m /= field_index) cycle
         endif
-        if ( associated(var%bc(n)%field(m)%values) ) then
+        if ( associated(var%bc(n)%field(m)%values_4) ) then
           if (scale == 0.0) then
             if (present(halo_size)) then
               do j=var%jsc-halo,var%jec+halo
                 do i=var%isc-halo,var%iec+halo
-                  var%bc(n)%field(m)%values(i,j) = 0.0
+                  var%bc(n)%field(m)%values_4(i,j) = 0.0
                 enddo
               enddo
             else
-              var%bc(n)%field(m)%values(:,:) = 0.0
+              var%bc(n)%field(m)%values_4(:,:) = 0.0
             endif
           else
             do j=var%jsc-halo,var%jec+halo
               do i=var%isc-halo,var%iec+halo
-                var%bc(n)%field(m)%values(i,j) = scale * var%bc(n)%field(m)%values(i,j)
+                var%bc(n)%field(m)%values_4(i,j) = scale * var%bc(n)%field(m)%values_4(i,j)
               enddo
             enddo
           endif
         endif
       enddo
     enddo
-  end subroutine CT_rescale_data_2d
+  end subroutine CT_rescale_data_2d_r4
+
+
+  subroutine CT_rescale_data_2d_r8(var, scale, halo_size, bc_index, field_index,&
+      & exclude_flux_type, only_flux_type, pass_through_ice)
+    type(coupler_2d_bc_type),   intent(inout) :: var !< The BC_type structure whose fields are being rescaled
+    real(DOUBLE_KIND),          intent(in)    :: scale   !< A scaling factor to multiply fields by
+    integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default or
+                                                           !! the full arrays if scale is 0.
+    integer,          optional, intent(in)    :: bc_index  !< The index of the boundary condition
+                                                           !! that is being copied
+    integer,          optional, intent(in)    :: field_index !< The index of the field in the
+                                                           !! boundary condition that is being copied
+    character(len=*), optional, intent(in)    :: exclude_flux_type !< A string describing which types
+                                                           !! of fluxes to exclude from this copy.
+    character(len=*), optional, intent(in)    :: only_flux_type !< A string describing which types
+                                                           !! of fluxes to include from this copy.
+    logical,          optional, intent(in)    :: pass_through_ice !< If true, only copy BCs whose
+                                                           !! value of pass_through ice matches this
+
+    logical :: do_bc
+    integer :: i, j, m, n, n1, n2, halo
+
+    if (present(bc_index)) then
+      if (bc_index > var%num_bcs)&
+          & call mpp_error(FATAL, "CT_rescale_data_2d_r8: bc_index is present and exceeds var%num_bcs.")
+      if (present(field_index)) then ; if (field_index > var%bc(bc_index)%num_fields)&
+          & call mpp_error(FATAL, "CT_rescale_data_2d_r8: field_index is present and exceeds num_fields for" //&
+          & trim(var%bc(bc_index)%name) )
+      endif
+    elseif (present(field_index)) then
+      call mpp_error(FATAL, "CT_rescale_data_2d_r8: bc_index must be present if field_index is present.")
+    endif
+
+    halo = 0
+    if (present(halo_size)) halo = halo_size
+
+    n1 = 1
+    n2 = var%num_bcs
+    if (present(bc_index)) then
+      n1 = bc_index
+      n2 = bc_index
+    endif
+
+    if (n2 >= n1) then
+      ! A more consciencious implementation would include a more descriptive error messages.
+      if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
+          & call mpp_error(FATAL, "CT_rescale_data_2d_r8: Excessive i-direction halo size.")
+      if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
+          & call mpp_error(FATAL, "CT_rescale_data_2d_r8: Excessive j-direction halo size.")
+    endif
+
+    do n = n1, n2
+      do_bc = .true.
+      if (do_bc .and. present(exclude_flux_type))&
+          & do_bc = .not.(trim(var%bc(n)%flux_type) == trim(exclude_flux_type))
+      if (do_bc .and. present(only_flux_type))&
+          & do_bc = (trim(var%bc(n)%flux_type) == trim(only_flux_type))
+      if (do_bc .and. present(pass_through_ice))&
+          & do_bc = (pass_through_ice .eqv. var%bc(n)%pass_through_ice)
+      if (.not.do_bc) cycle
+
+      do m = 1, var%bc(n)%num_fields
+        if (present(field_index)) then
+          if (m /= field_index) cycle
+        endif
+        if ( associated(var%bc(n)%field(m)%values_8) ) then
+          if (scale == 0.0) then
+            if (present(halo_size)) then
+              do j=var%jsc-halo,var%jec+halo
+                do i=var%isc-halo,var%iec+halo
+                  var%bc(n)%field(m)%values_8(i,j) = 0.0
+                enddo
+              enddo
+            else
+              var%bc(n)%field(m)%values_8(:,:) = 0.0
+            endif
+          else
+            do j=var%jsc-halo,var%jec+halo
+              do i=var%isc-halo,var%iec+halo
+                var%bc(n)%field(m)%values_8(i,j) = scale * var%bc(n)%field(m)%values_8(i,j)
+              enddo
+            enddo
+          endif
+        endif
+      enddo
+    enddo
+  end subroutine CT_rescale_data_2d_r8
+
 
   !! @brief Rescales the fields in the elements of a coupler_3d_bc_type
   !!
   !! This subroutine rescales the fields in the elements of a coupler_3d_bc_type by multiplying by a
   !! factor scale.  If scale is 0, this is a direct assignment to 0, so that NaNs will not persist.
-  subroutine CT_rescale_data_3d(var, scale, halo_size, bc_index, field_index,&
+  subroutine CT_rescale_data_3d_r4(var, scale, halo_size, bc_index, field_index,&
       & exclude_flux_type, only_flux_type, pass_through_ice)
     type(coupler_3d_bc_type),   intent(inout) :: var !< The BC_type structure whose fields are being rescaled
-    real,                       intent(in)    :: scale   !< A scaling factor to multiply fields by
+    real(FLOAT_KIND),           intent(in)    :: scale   !< A scaling factor to multiply fields by
     integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default or
                                                            !! the full arrays if scale is 0.
     integer,          optional, intent(in)    :: bc_index  !< The index of the boundary condition
@@ -1729,13 +2089,13 @@ contains
 
     if (present(bc_index)) then
       if (bc_index > var%num_bcs)&
-          & call mpp_error(FATAL, "CT_rescale_data_2d: bc_index is present and exceeds var%num_bcs.")
+          & call mpp_error(FATAL, "CT_rescale_data_3d_r4: bc_index is present and exceeds var%num_bcs.")
       if (present(field_index)) then ; if (field_index > var%bc(bc_index)%num_fields)&
-          & call mpp_error(FATAL, "CT_rescale_data_2d: field_index is present and exceeds num_fields for" //&
+          & call mpp_error(FATAL, "CT_rescale_data_3d_r4: field_index is present and exceeds num_fields for" //&
           & trim(var%bc(bc_index)%name) )
       endif
     elseif (present(field_index)) then
-      call mpp_error(FATAL, "CT_rescale_data_2d: bc_index must be present if field_index is present.")
+      call mpp_error(FATAL, "CT_rescale_data_3d_r4: bc_index must be present if field_index is present.")
     endif
 
     halo = 0
@@ -1751,9 +2111,9 @@ contains
     if (n2 >= n1) then
       ! A more consciencious implementation would include a more descriptive error messages.
       if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
-          & call mpp_error(FATAL, "CT_rescale_data_3d: Excessive i-direction halo size.")
+          & call mpp_error(FATAL, "CT_rescale_data_3d_r4: Excessive i-direction halo size.")
       if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
-          & call mpp_error(FATAL, "CT_rescale_data_3d: Excessive j-direction halo size.")
+          & call mpp_error(FATAL, "CT_rescale_data_3d_r4: Excessive j-direction halo size.")
     endif
 
     do n = n1, n2
@@ -1770,24 +2130,24 @@ contains
         if (present(field_index)) then
           if (m /= field_index) cycle
         endif
-        if ( associated(var%bc(n)%field(m)%values) ) then
+        if ( associated(var%bc(n)%field(m)%values_4) ) then
           if (scale == 0.0) then
             if (present(halo_size)) then
               do k=var%ks,var%ke
                 do j=var%jsc-halo,var%jec+halo
                   do i=var%isc-halo,var%iec+halo
-                    var%bc(n)%field(m)%values(i,j,k) = 0.0
+                    var%bc(n)%field(m)%values_4(i,j,k) = 0.0
                   enddo
                 enddo
               enddo
             else
-              var%bc(n)%field(m)%values(:,:,:) = 0.0
+              var%bc(n)%field(m)%values_4(:,:,:) = 0.0
             endif
           else
             do k=var%ks,var%ke
               do j=var%jsc-halo,var%jec+halo
                 do i=var%isc-halo,var%iec+halo
-                  var%bc(n)%field(m)%values(i,j,k) = scale * var%bc(n)%field(m)%values(i,j,k)
+                  var%bc(n)%field(m)%values_4(i,j,k) = scale * var%bc(n)%field(m)%values_4(i,j,k)
                 enddo
               enddo
             enddo
@@ -1795,7 +2155,98 @@ contains
         endif
       enddo
     enddo
-  end subroutine CT_rescale_data_3d
+  end subroutine CT_rescale_data_3d_r4
+
+
+  subroutine CT_rescale_data_3d_r8(var, scale, halo_size, bc_index, field_index,&
+      & exclude_flux_type, only_flux_type, pass_through_ice)
+    type(coupler_3d_bc_type),   intent(inout) :: var !< The BC_type structure whose fields are being rescaled
+    real(DOUBLE_KIND),          intent(in)    :: scale   !< A scaling factor to multiply fields by
+    integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default or
+                                                           !! the full arrays if scale is 0.
+    integer,          optional, intent(in)    :: bc_index  !< The index of the boundary condition
+                                                         !! that is being copied
+    integer,          optional, intent(in)    :: field_index !< The index of the field in the
+                                                         !! boundary condition that is being copied
+    character(len=*), optional, intent(in)    :: exclude_flux_type !< A string describing which types
+                                                         !! of fluxes to exclude from this copy.
+    character(len=*), optional, intent(in)    :: only_flux_type !< A string describing which types of
+                                                         !! fluxes to include from this copy.
+    logical,          optional, intent(in)    :: pass_through_ice !< If true, only copy BCs whose
+                                                         !! value of pass_through ice matches this
+
+    logical :: do_bc
+    integer :: i, j, k, m, n, n1, n2, halo
+
+    if (present(bc_index)) then
+      if (bc_index > var%num_bcs)&
+          & call mpp_error(FATAL, "CT_rescale_data_3d_r8: bc_index is present and exceeds var%num_bcs.")
+      if (present(field_index)) then ; if (field_index > var%bc(bc_index)%num_fields)&
+          & call mpp_error(FATAL, "CT_rescale_data_3d_r8: field_index is present and exceeds num_fields for" //&
+          & trim(var%bc(bc_index)%name) )
+      endif
+    elseif (present(field_index)) then
+      call mpp_error(FATAL, "CT_rescale_data_3d_r8: bc_index must be present if field_index is present.")
+    endif
+
+    halo = 0
+    if (present(halo_size)) halo = halo_size
+
+    n1 = 1
+    n2 = var%num_bcs
+    if (present(bc_index)) then
+      n1 = bc_index
+      n2 = bc_index
+    endif
+
+    if (n2 >= n1) then
+      ! A more consciencious implementation would include a more descriptive error messages.
+      if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
+          & call mpp_error(FATAL, "CT_rescale_data_3d_r8: Excessive i-direction halo size.")
+      if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
+          & call mpp_error(FATAL, "CT_rescale_data_3d_r8: Excessive j-direction halo size.")
+    endif
+
+    do n = n1, n2
+      do_bc = .true.
+      if (do_bc .and. present(exclude_flux_type))&
+          & do_bc = .not.(trim(var%bc(n)%flux_type) == trim(exclude_flux_type))
+      if (do_bc .and. present(only_flux_type))&
+          & do_bc = (trim(var%bc(n)%flux_type) == trim(only_flux_type))
+      if (do_bc .and. present(pass_through_ice))&
+          & do_bc = (pass_through_ice .eqv. var%bc(n)%pass_through_ice)
+      if (.not.do_bc) cycle
+
+      do m = 1, var%bc(n)%num_fields
+        if (present(field_index)) then
+          if (m /= field_index) cycle
+        endif
+        if ( associated(var%bc(n)%field(m)%values_8) ) then
+          if (scale == 0.0) then
+            if (present(halo_size)) then
+              do k=var%ks,var%ke
+                do j=var%jsc-halo,var%jec+halo
+                  do i=var%isc-halo,var%iec+halo
+                    var%bc(n)%field(m)%values_8(i,j,k) = 0.0
+                  enddo
+                enddo
+              enddo
+            else
+              var%bc(n)%field(m)%values_8(:,:,:) = 0.0
+            endif
+          else
+            do k=var%ks,var%ke
+              do j=var%jsc-halo,var%jec+halo
+                do i=var%isc-halo,var%iec+halo
+                  var%bc(n)%field(m)%values_8(i,j,k) = scale * var%bc(n)%field(m)%values_8(i,j,k)
+                enddo
+              enddo
+            enddo
+          endif
+        endif
+      enddo
+    enddo
+  end subroutine CT_rescale_data_3d_r8
 
 
   !! @brief Increment data in all elements of one coupler_2d_bc_type
@@ -1810,7 +2261,7 @@ contains
   !! @throw FATAL, "There is an j-direction computational domain size mismatch."
   !! @throw FATAL, "Excessive i-direction halo size for the input structure."
   !! @throw FATAL, "Excessive i-direction halo size for the input structure."
-  subroutine CT_increment_data_2d_2d(var_in, var, halo_size, bc_index, field_index,&
+  subroutine CT_increment_data_2d_2d_r4(var_in, var, halo_size, bc_index, field_index,&
       & scale_factor, scale_prev, exclude_flux_type, only_flux_type, pass_through_ice)
     type(coupler_2d_bc_type),   intent(in)    :: var_in  !< BC_type structure with the data to add to the other type
     type(coupler_2d_bc_type),   intent(inout) :: var !< The BC_type structure whose fields are being incremented
@@ -1819,8 +2270,8 @@ contains
                                                          !! that is being copied
     integer,          optional, intent(in)    :: field_index !< The index of the field in the
                                                          !! boundary condition that is being copied
-    real,             optional, intent(in)    :: scale_factor  !< A scaling factor for the data that is being added
-    real,             optional, intent(in)    :: scale_prev    !< A scaling factor for the data that is already here
+    real(FLOAT_KIND), optional, intent(in)    :: scale_factor  !< A scaling factor for the data that is being added
+    real(FLOAT_KIND), optional, intent(in)    :: scale_prev    !< A scaling factor for the data that is already here
     character(len=*), optional, intent(in)    :: exclude_flux_type !< A string describing which types
                                                          !! of fluxes to exclude from this increment.
     character(len=*), optional, intent(in)    :: only_flux_type    !< A string describing which types
@@ -1828,7 +2279,7 @@ contains
     logical,          optional, intent(in)    :: pass_through_ice !< If true, only increment BCs whose
                                                          !! value of pass_through ice matches this
 
-    real :: scale, sc_prev
+    real(FLOAT_KIND) :: scale, sc_prev
     logical :: increment_bc
     integer :: i, j, m, n, n1, n2, halo, i_off, j_off
 
@@ -1839,14 +2290,14 @@ contains
 
     if (present(bc_index)) then
       if (bc_index > var_in%num_bcs)&
-          & call mpp_error(FATAL, "CT_increment_data_2d_2d: bc_index is present and exceeds var_in%num_bcs.")
+          & call mpp_error(FATAL, "CT_increment_data_2d_2d_r4: bc_index is present and exceeds var_in%num_bcs.")
       if (present(field_index)) then
         if (field_index > var_in%bc(bc_index)%num_fields)&
-            & call mpp_error(FATAL, "CT_increment_data_2d_2d: field_index is present and exceeds num_fields for" //&
+            & call mpp_error(FATAL, "CT_increment_data_2d_2d_r4: field_index is present and exceeds num_fields for" //&
             & trim(var_in%bc(bc_index)%name) )
       endif
     elseif (present(field_index)) then
-      call mpp_error(FATAL, "CT_increment_data_2d_2d: bc_index must be present if field_index is present.")
+      call mpp_error(FATAL, "CT_increment_data_2d_2d_r4: bc_index must be present if field_index is present.")
     endif
 
     halo = 0
@@ -1862,17 +2313,17 @@ contains
     if (n2 >= n1) then
       ! A more consciencious implementation would include a more descriptive error messages.
       if ((var_in%iec-var_in%isc) /= (var%iec-var%isc))&
-          & call mpp_error(FATAL, "CT_increment_data_2d: There is an i-direction computational domain size mismatch.")
+          & call mpp_error(FATAL, "CT_increment_data_2d_r4: There is an i-direction computational domain size mismatch.")
       if ((var_in%jec-var_in%jsc) /= (var%jec-var%jsc))&
-          & call mpp_error(FATAL, "CT_increment_data_2d: There is a j-direction computational domain size mismatch.")
+          & call mpp_error(FATAL, "CT_increment_data_2d_r4: There is a j-direction computational domain size mismatch.")
       if ((var_in%isc-var_in%isd < halo) .or. (var_in%ied-var_in%iec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d: Excessive i-direction halo size for the input structure.")
+          & call mpp_error(FATAL, "CT_increment_data_2d_r4: Excessive i-direction halo size for the input structure.")
       if ((var_in%jsc-var_in%jsd < halo) .or. (var_in%jed-var_in%jec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d: Excessive j-direction halo size for the input structure.")
+          & call mpp_error(FATAL, "CT_increment_data_2d_r4: Excessive j-direction halo size for the input structure.")
       if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d: Excessive i-direction halo size for the output structure.")
+          & call mpp_error(FATAL, "CT_increment_data_2d_r4: Excessive i-direction halo size for the output structure.")
       if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d: Excessive j-direction halo size for the output structure.")
+          & call mpp_error(FATAL, "CT_increment_data_2d_r4: Excessive j-direction halo size for the output structure.")
 
       i_off = var_in%isc - var%isc
       j_off = var_in%jsc - var%jsc
@@ -1892,17 +2343,112 @@ contains
         if (present(field_index)) then
           if (m /= field_index) cycle
         endif
-        if ( associated(var%bc(n)%field(m)%values) ) then
+        if ( associated(var%bc(n)%field(m)%values_4) ) then
           do j=var%jsc-halo,var%jec+halo
             do i=var%isc-halo,var%iec+halo
-              var%bc(n)%field(m)%values(i,j) = sc_prev * var%bc(n)%field(m)%values(i,j) +&
-                  & scale * var_in%bc(n)%field(m)%values(i+i_off,j+j_off)
+              var%bc(n)%field(m)%values_4(i,j) = sc_prev * var%bc(n)%field(m)%values_4(i,j) +&
+                  & scale * var_in%bc(n)%field(m)%values_4(i+i_off,j+j_off)
             enddo
           enddo
         endif
       enddo
     enddo
-  end subroutine CT_increment_data_2d_2d
+  end subroutine CT_increment_data_2d_2d_r4
+
+
+  subroutine CT_increment_data_2d_2d_r8(var_in, var, halo_size, bc_index, field_index,&
+      & scale_factor, scale_prev, exclude_flux_type, only_flux_type, pass_through_ice)
+    type(coupler_2d_bc_type),   intent(in)    :: var_in  !< BC_type structure with the data to add to the other type
+    type(coupler_2d_bc_type),   intent(inout) :: var !< The BC_type structure whose fields are being incremented
+    integer,          optional, intent(in)    :: halo_size !< The extent of the halo to increment; 0 by default
+    integer,          optional, intent(in)    :: bc_index  !< The index of the boundary condition
+                                                         !! that is being copied
+    integer,          optional, intent(in)    :: field_index !< The index of the field in the
+                                                         !! boundary condition that is being copied
+    real(DOUBLE_KIND),optional, intent(in)    :: scale_factor  !< A scaling factor for the data that is being added
+    real(DOUBLE_KIND),optional, intent(in)    :: scale_prev    !< A scaling factor for the data that is already here
+    character(len=*), optional, intent(in)    :: exclude_flux_type !< A string describing which types
+                                                         !! of fluxes to exclude from this increment.
+    character(len=*), optional, intent(in)    :: only_flux_type    !< A string describing which types
+                                                         !! of fluxes to include from this increment.
+    logical,          optional, intent(in)    :: pass_through_ice !< If true, only increment BCs whose
+                                                         !! value of pass_through ice matches this
+
+    real(DOUBLE_KIND) :: scale, sc_prev
+    logical :: increment_bc
+    integer :: i, j, m, n, n1, n2, halo, i_off, j_off
+
+    scale = 1.0
+    if (present(scale_factor)) scale = scale_factor
+    sc_prev = 1.0
+    if (present(scale_prev)) sc_prev = scale_prev
+
+    if (present(bc_index)) then
+      if (bc_index > var_in%num_bcs)&
+          & call mpp_error(FATAL, "CT_increment_data_2d_2d_r8: bc_index is present and exceeds var_in%num_bcs.")
+      if (present(field_index)) then
+        if (field_index > var_in%bc(bc_index)%num_fields)&
+            & call mpp_error(FATAL, "CT_increment_data_2d_2d_r8: field_index is present and exceeds num_fields for" //&
+            & trim(var_in%bc(bc_index)%name) )
+      endif
+    elseif (present(field_index)) then
+      call mpp_error(FATAL, "CT_increment_data_2d_2d_r8: bc_index must be present if field_index is present.")
+    endif
+
+    halo = 0
+    if (present(halo_size)) halo = halo_size
+
+    n1 = 1
+    n2 = var_in%num_bcs
+    if (present(bc_index)) then
+      n1 = bc_index
+      n2 = bc_index
+    endif
+
+    if (n2 >= n1) then
+      ! A more consciencious implementation would include a more descriptive error messages.
+      if ((var_in%iec-var_in%isc) /= (var%iec-var%isc))&
+          & call mpp_error(FATAL, "CT_increment_data_2d_r8: There is an i-direction computational domain size mismatch.")
+      if ((var_in%jec-var_in%jsc) /= (var%jec-var%jsc))&
+          & call mpp_error(FATAL, "CT_increment_data_2d_r8: There is a j-direction computational domain size mismatch.")
+      if ((var_in%isc-var_in%isd < halo) .or. (var_in%ied-var_in%iec < halo))&
+          & call mpp_error(FATAL, "CT_increment_data_2d_r8: Excessive i-direction halo size for the input structure.")
+      if ((var_in%jsc-var_in%jsd < halo) .or. (var_in%jed-var_in%jec < halo))&
+          & call mpp_error(FATAL, "CT_increment_data_2d_r8: Excessive j-direction halo size for the input structure.")
+      if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
+          & call mpp_error(FATAL, "CT_increment_data_2d_r8: Excessive i-direction halo size for the output structure.")
+      if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
+          & call mpp_error(FATAL, "CT_increment_data_2d_r8: Excessive j-direction halo size for the output structure.")
+
+      i_off = var_in%isc - var%isc
+      j_off = var_in%jsc - var%jsc
+    endif
+
+    do n = n1, n2
+      increment_bc = .true.
+      if (increment_bc .and. present(exclude_flux_type))&
+          & increment_bc = .not.(trim(var%bc(n)%flux_type) == trim(exclude_flux_type))
+      if (increment_bc .and. present(only_flux_type))&
+          & increment_bc = (trim(var%bc(n)%flux_type) == trim(only_flux_type))
+      if (increment_bc .and. present(pass_through_ice))&
+          & increment_bc = (pass_through_ice .eqv. var%bc(n)%pass_through_ice)
+      if (.not.increment_bc) cycle
+
+      do m = 1, var_in%bc(n)%num_fields
+        if (present(field_index)) then
+          if (m /= field_index) cycle
+        endif
+        if ( associated(var%bc(n)%field(m)%values_8) ) then
+          do j=var%jsc-halo,var%jec+halo
+            do i=var%isc-halo,var%iec+halo
+              var%bc(n)%field(m)%values_8(i,j) = sc_prev * var%bc(n)%field(m)%values_8(i,j) +&
+                  & scale * var_in%bc(n)%field(m)%values_8(i+i_off,j+j_off)
+            enddo
+          enddo
+        endif
+      enddo
+    enddo
+  end subroutine CT_increment_data_2d_2d_r8
 
 
   !! @brief Increment data in all elements of one coupler_3d_bc_type
@@ -1919,7 +2465,7 @@ contains
   !! @throw FATAL, "Excessive i-direction halo size for the input structure."
   !! @throw FATAL, "Excessive i-direction halo size for the input structure."
   !! @throw FATAL, "Excessive k-direction halo size for the input structure."
-  subroutine CT_increment_data_3d_3d(var_in, var, halo_size, bc_index, field_index,&
+  subroutine CT_increment_data_3d_3d_r4(var_in, var, halo_size, bc_index, field_index,&
       & scale_factor, scale_prev, exclude_flux_type, only_flux_type, pass_through_ice)
     type(coupler_3d_bc_type),   intent(in)    :: var_in  !< BC_type structure with the data to add to the other type
     type(coupler_3d_bc_type),   intent(inout) :: var !< The BC_type structure whose fields are being incremented
@@ -1928,8 +2474,8 @@ contains
                                                          !! that is being copied
     integer,          optional, intent(in)    :: field_index !< The index of the field in the
                                                          !! boundary condition that is being copied
-    real,             optional, intent(in)    :: scale_factor  !< A scaling factor for the data that is being added
-    real,             optional, intent(in)    :: scale_prev !< A scaling factor for the data that is already here
+    real(FLOAT_KIND), optional, intent(in)    :: scale_factor  !< A scaling factor for the data that is being added
+    real(FLOAT_KIND), optional, intent(in)    :: scale_prev !< A scaling factor for the data that is already here
     character(len=*), optional, intent(in)    :: exclude_flux_type !< A string describing which types
                                                          !! of fluxes to exclude from this increment.
     character(len=*), optional, intent(in)    :: only_flux_type !< A string describing which types of
@@ -1937,7 +2483,7 @@ contains
     logical,          optional, intent(in)    :: pass_through_ice !< If true, only increment BCs whose
                                                          !! value of pass_through ice matches this
 
-    real :: scale, sc_prev
+    real(FLOAT_KIND) :: scale, sc_prev
     logical :: increment_bc
     integer :: i, j, k, m, n, n1, n2, halo, i_off, j_off, k_off
 
@@ -1948,13 +2494,13 @@ contains
 
     if (present(bc_index)) then
       if (bc_index > var_in%num_bcs)&
-          & call mpp_error(FATAL, "CT_increment_data_3d_3d: bc_index is present and exceeds var_in%num_bcs.")
+          & call mpp_error(FATAL, "CT_increment_data_3d_3d_r4: bc_index is present and exceeds var_in%num_bcs.")
       if (present(field_index)) then ; if (field_index > var_in%bc(bc_index)%num_fields)&
-          & call mpp_error(FATAL, "CT_increment_data_3d_3d: field_index is present and exceeds num_fields for" //&
+          & call mpp_error(FATAL, "CT_increment_data_3d_3d_r4: field_index is present and exceeds num_fields for" //&
           & trim(var_in%bc(bc_index)%name) )
       endif
     elseif (present(field_index)) then
-      call mpp_error(FATAL, "CT_increment_data_3d_3d: bc_index must be present if field_index is present.")
+      call mpp_error(FATAL, "CT_increment_data_3d_3d_r4: bc_index must be present if field_index is present.")
     endif
 
     halo = 0
@@ -1970,19 +2516,19 @@ contains
     if (n2 >= n1) then
       ! A more consciencious implementation would include a more descriptive error messages.
       if ((var_in%iec-var_in%isc) /= (var%iec-var%isc))&
-          & call mpp_error(FATAL, "CT_increment_data_3d: There is an i-direction computational domain size mismatch.")
+          & call mpp_error(FATAL, "CT_increment_data_3d_r4: There is an i-direction computational domain size mismatch.")
       if ((var_in%jec-var_in%jsc) /= (var%jec-var%jsc))&
-          & call mpp_error(FATAL, "CT_increment_data_3d: There is a j-direction computational domain size mismatch.")
+          & call mpp_error(FATAL, "CT_increment_data_3d_r4: There is a j-direction computational domain size mismatch.")
       if ((var_in%ke-var_in%ks) /= (var%ke-var%ks))&
-          & call mpp_error(FATAL, "CT_increment_data_3d: There is a k-direction computational domain size mismatch.")
+          & call mpp_error(FATAL, "CT_increment_data_3d_r4: There is a k-direction computational domain size mismatch.")
       if ((var_in%isc-var_in%isd < halo) .or. (var_in%ied-var_in%iec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_3d: Excessive i-direction halo size for the input structure.")
+          & call mpp_error(FATAL, "CT_increment_data_3d_r4: Excessive i-direction halo size for the input structure.")
       if ((var_in%jsc-var_in%jsd < halo) .or. (var_in%jed-var_in%jec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_3d: Excessive j-direction halo size for the input structure.")
+          & call mpp_error(FATAL, "CT_increment_data_3d_r4: Excessive j-direction halo size for the input structure.")
       if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_3d: Excessive i-direction halo size for the output structure.")
+          & call mpp_error(FATAL, "CT_increment_data_3d_r4: Excessive i-direction halo size for the output structure.")
       if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_3d: Excessive j-direction halo size for the output structure.")
+          & call mpp_error(FATAL, "CT_increment_data_3d_r4: Excessive j-direction halo size for the output structure.")
 
       i_off = var_in%isc - var%isc
       j_off = var_in%jsc - var%jsc
@@ -2003,19 +2549,117 @@ contains
         if (present(field_index)) then
           if (m /= field_index) cycle
         endif
-        if ( associated(var%bc(n)%field(m)%values) ) then
+        if ( associated(var%bc(n)%field(m)%values_4) ) then
           do k=var%ks,var%ke
             do j=var%jsc-halo,var%jec+halo
               do i=var%isc-halo,var%iec+halo
-                var%bc(n)%field(m)%values(i,j,k) = sc_prev * var%bc(n)%field(m)%values(i,j,k) +&
-                    & scale * var_in%bc(n)%field(m)%values(i+i_off,j+j_off,k+k_off)
+                var%bc(n)%field(m)%values_4(i,j,k) = sc_prev * var%bc(n)%field(m)%values_4(i,j,k) +&
+                    & scale * var_in%bc(n)%field(m)%values_4(i+i_off,j+j_off,k+k_off)
               enddo
             enddo
           enddo
         endif
       enddo
     enddo
-  end subroutine CT_increment_data_3d_3d
+  end subroutine CT_increment_data_3d_3d_r4
+
+  subroutine CT_increment_data_3d_3d_r8(var_in, var, halo_size, bc_index, field_index,&
+      & scale_factor, scale_prev, exclude_flux_type, only_flux_type, pass_through_ice)
+    type(coupler_3d_bc_type),   intent(in)    :: var_in  !< BC_type structure with the data to add to the other type
+    type(coupler_3d_bc_type),   intent(inout) :: var !< The BC_type structure whose fields are being incremented
+    integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default
+    integer,          optional, intent(in)    :: bc_index !< The index of the boundary condition
+                                                         !! that is being copied
+    integer,          optional, intent(in)    :: field_index !< The index of the field in the
+                                                         !! boundary condition that is being copied
+    real(DOUBLE_KIND),optional, intent(in)    :: scale_factor  !< A scaling factor for the data that is being added
+    real(DOUBLE_KIND),optional, intent(in)    :: scale_prev !< A scaling factor for the data that is already here
+    character(len=*), optional, intent(in)    :: exclude_flux_type !< A string describing which types
+                                                         !! of fluxes to exclude from this increment.
+    character(len=*), optional, intent(in)    :: only_flux_type !< A string describing which types of
+                                                         !! fluxes to include from this increment.
+    logical,          optional, intent(in)    :: pass_through_ice !< If true, only increment BCs whose
+                                                         !! value of pass_through ice matches this
+
+    real(DOUBLE_KIND) :: scale, sc_prev
+    logical :: increment_bc
+    integer :: i, j, k, m, n, n1, n2, halo, i_off, j_off, k_off
+
+    scale = 1.0
+    if (present(scale_factor)) scale = scale_factor
+    sc_prev = 1.0
+    if (present(scale_prev)) sc_prev = scale_prev
+
+    if (present(bc_index)) then
+      if (bc_index > var_in%num_bcs)&
+          & call mpp_error(FATAL, "CT_increment_data_3d_3d_r8: bc_index is present and exceeds var_in%num_bcs.")
+      if (present(field_index)) then ; if (field_index > var_in%bc(bc_index)%num_fields)&
+          & call mpp_error(FATAL, "CT_increment_data_3d_3d_r8: field_index is present and exceeds num_fields for" //&
+          & trim(var_in%bc(bc_index)%name) )
+      endif
+    elseif (present(field_index)) then
+      call mpp_error(FATAL, "CT_increment_data_3d_3d_r8: bc_index must be present if field_index is present.")
+    endif
+
+    halo = 0
+    if (present(halo_size)) halo = halo_size
+
+    n1 = 1
+    n2 = var_in%num_bcs
+    if (present(bc_index)) then
+      n1 = bc_index
+      n2 = bc_index
+    endif
+
+    if (n2 >= n1) then
+      ! A more consciencious implementation would include a more descriptive error messages.
+      if ((var_in%iec-var_in%isc) /= (var%iec-var%isc))&
+          & call mpp_error(FATAL, "CT_increment_data_3d_r8: There is an i-direction computational domain size mismatch.")
+      if ((var_in%jec-var_in%jsc) /= (var%jec-var%jsc))&
+          & call mpp_error(FATAL, "CT_increment_data_3d_r8: There is a j-direction computational domain size mismatch.")
+      if ((var_in%ke-var_in%ks) /= (var%ke-var%ks))&
+          & call mpp_error(FATAL, "CT_increment_data_3d_r8: There is a k-direction computational domain size mismatch.")
+      if ((var_in%isc-var_in%isd < halo) .or. (var_in%ied-var_in%iec < halo))&
+          & call mpp_error(FATAL, "CT_increment_data_3d_r8: Excessive i-direction halo size for the input structure.")
+      if ((var_in%jsc-var_in%jsd < halo) .or. (var_in%jed-var_in%jec < halo))&
+          & call mpp_error(FATAL, "CT_increment_data_3d_r8: Excessive j-direction halo size for the input structure.")
+      if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
+          & call mpp_error(FATAL, "CT_increment_data_3d_r8: Excessive i-direction halo size for the output structure.")
+      if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
+          & call mpp_error(FATAL, "CT_increment_data_3d_r8: Excessive j-direction halo size for the output structure.")
+
+      i_off = var_in%isc - var%isc
+      j_off = var_in%jsc - var%jsc
+      k_off = var_in%ks - var%ks
+    endif
+
+    do n = n1, n2
+      increment_bc = .true.
+      if (increment_bc .and. present(exclude_flux_type))&
+          & increment_bc = .not.(trim(var%bc(n)%flux_type) == trim(exclude_flux_type))
+      if (increment_bc .and. present(only_flux_type))&
+          & increment_bc = (trim(var%bc(n)%flux_type) == trim(only_flux_type))
+      if (increment_bc .and. present(pass_through_ice))&
+          & increment_bc = (pass_through_ice .eqv. var%bc(n)%pass_through_ice)
+      if (.not.increment_bc) cycle
+
+      do m = 1, var_in%bc(n)%num_fields
+        if (present(field_index)) then
+          if (m /= field_index) cycle
+        endif
+        if ( associated(var%bc(n)%field(m)%values_8) ) then
+          do k=var%ks,var%ke
+            do j=var%jsc-halo,var%jec+halo
+              do i=var%isc-halo,var%iec+halo
+                var%bc(n)%field(m)%values_8(i,j,k) = sc_prev * var%bc(n)%field(m)%values_8(i,j,k) +&
+                    & scale * var_in%bc(n)%field(m)%values_8(i+i_off,j+j_off,k+k_off)
+              enddo
+            enddo
+          enddo
+        endif
+      enddo
+    enddo
+  end subroutine CT_increment_data_3d_3d_r8
 
   !! @brief Increment data in the elements of a coupler_2d_bc_type with weighted averages of elements of a
   !! coupler_3d_bc_type
@@ -2034,10 +2678,10 @@ contains
   !! @throw FATAL, "Excessive i-direction halo size for the input structure."
   !! @throw FATAL, "weights array must be the i-size of a computational or data domain."
   !! @throw FATAL, "weights array must be the j-size of a computational or data domain."
-  subroutine CT_increment_data_2d_3d(var_in, weights, var, halo_size, bc_index, field_index,&
+  subroutine CT_increment_data_2d_3d_r4(var_in, weights, var, halo_size, bc_index, field_index,&
       & scale_factor, scale_prev, exclude_flux_type, only_flux_type, pass_through_ice)
     type(coupler_3d_bc_type),   intent(in)    :: var_in  !< BC_type structure with the data to add to the other type
-    real, dimension(:,:,:),     intent(in)    :: weights !< An array of normalized weights for the 3d-data to
+    real(FLOAT_KIND), dimension(:,:,:),     intent(in)    :: weights !< An array of normalized weights for the 3d-data to
                                                          !! increment the 2d-data.  There is no renormalization,
                                                          !! so if the weights do not sum to 1 in the 3rd dimension
                                                          !! there may be adverse consequences!
@@ -2047,8 +2691,8 @@ contains
                                                          !! that is being copied
     integer,          optional, intent(in)    :: field_index !< The index of the field in the
                                                          !! boundary condition that is being copied
-    real,             optional, intent(in)    :: scale_factor  !< A scaling factor for the data that is being added
-    real,             optional, intent(in)    :: scale_prev    !< A scaling factor for the data that is already here
+    real(FLOAT_KIND), optional, intent(in)    :: scale_factor  !< A scaling factor for the data that is being added
+    real(FLOAT_KIND), optional, intent(in)    :: scale_prev    !< A scaling factor for the data that is already here
     character(len=*), optional, intent(in)    :: exclude_flux_type !< A string describing which types
                                                          !! of fluxes to exclude from this increment.
     character(len=*), optional, intent(in)    :: only_flux_type    !< A string describing which types
@@ -2056,7 +2700,7 @@ contains
     logical,          optional, intent(in)    :: pass_through_ice !< If true, only increment BCs whose
                                                          !! value of pass_through ice matches this
 
-    real :: scale, sc_prev
+    real(FLOAT_KIND) :: scale, sc_prev
     logical :: increment_bc
     integer :: i, j, k, m, n, n1, n2, halo
     integer :: io1, jo1, iow, jow, kow  ! Offsets to account for different index conventions.
@@ -2068,13 +2712,13 @@ contains
 
     if (present(bc_index)) then
       if (bc_index > var_in%num_bcs)&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d: bc_index is present and exceeds var_in%num_bcs.")
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: bc_index is present and exceeds var_in%num_bcs.")
       if (present(field_index)) then ; if (field_index > var_in%bc(bc_index)%num_fields)&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d: field_index is present and exceeds num_fields for" //&
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: field_index is present and exceeds num_fields for" //&
           & trim(var_in%bc(bc_index)%name) )
       endif
     elseif (present(field_index)) then
-      call mpp_error(FATAL, "CT_increment_data_2d_3d: bc_index must be present if field_index is present.")
+      call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: bc_index must be present if field_index is present.")
     endif
 
     halo = 0
@@ -2090,19 +2734,19 @@ contains
     if (n2 >= n1) then
       ! A more consciencious implementation would include a more descriptive error messages.
       if ((var_in%iec-var_in%isc) /= (var%iec-var%isc))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d: There is an i-direction computational domain size mismatch.")
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: There is an i-direction computational domain size mismatch.")
       if ((var_in%jec-var_in%jsc) /= (var%jec-var%jsc))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d: There is a j-direction computational domain size mismatch.")
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: There is a j-direction computational domain size mismatch.")
       if ((1+var_in%ke-var_in%ks) /= size(weights,3))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d: There is a k-direction size mismatch with the weights array.")
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: There is a k-direction size mismatch with the weights array.")
       if ((var_in%isc-var_in%isd < halo) .or. (var_in%ied-var_in%iec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d: Excessive i-direction halo size for the input structure.")
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: Excessive i-direction halo size for the input structure.")
       if ((var_in%jsc-var_in%jsd < halo) .or. (var_in%jed-var_in%jec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d: Excessive j-direction halo size for the input structure.")
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: Excessive j-direction halo size for the input structure.")
       if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d: Excessive i-direction halo size for the output structure.")
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: Excessive i-direction halo size for the output structure.")
       if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d: Excessive j-direction halo size for the output structure.")
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: Excessive j-direction halo size for the output structure.")
 
       if ((1+var%iec-var%isc) == size(weights,1)) then
         iow = 1 - var%isc
@@ -2111,7 +2755,7 @@ contains
       elseif ((1+var_in%ied-var_in%isd) == size(weights,1)) then
         iow = 1 + (var_in%isc - var_in%isd) - var%isc
       else
-        call mpp_error(FATAL, "CT_increment_data_2d_3d: weights array must be the i-size of a computational or data domain.")
+        call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: weights array must be the i-size of a computational or data domain.")
       endif
       if ((1+var%jec-var%jsc) == size(weights,2)) then
         jow = 1 - var%jsc
@@ -2120,7 +2764,7 @@ contains
       elseif ((1+var_in%jed-var_in%jsd) == size(weights,2)) then
         jow = 1 + (var_in%jsc - var_in%jsd) - var%jsc
       else
-        call mpp_error(FATAL, "CT_increment_data_2d_3d: weights array must be the j-size of a computational or data domain.")
+        call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: weights array must be the j-size of a computational or data domain.")
       endif
 
       io1 = var_in%isc - var%isc
@@ -2142,19 +2786,141 @@ contains
         if (present(field_index)) then
           if (m /= field_index) cycle
         endif
-        if ( associated(var%bc(n)%field(m)%values) ) then
+        if ( associated(var%bc(n)%field(m)%values_4) ) then
           do k=var_in%ks,var_in%ke
             do j=var%jsc-halo,var%jec+halo
               do i=var%isc-halo,var%iec+halo
-                var%bc(n)%field(m)%values(i,j) = sc_prev * var%bc(n)%field(m)%values(i,j) +&
-                    & (scale * weights(i+iow,j+jow,k+kow)) * var_in%bc(n)%field(m)%values(i+io1,j+io1,k)
+                var%bc(n)%field(m)%values_4(i,j) = sc_prev * var%bc(n)%field(m)%values_4(i,j) +&
+                    & (scale * weights(i+iow,j+jow,k+kow)) * var_in%bc(n)%field(m)%values_4(i+io1,j+io1,k)
               enddo
             enddo
           enddo
         endif
       enddo
     enddo
-  end subroutine CT_increment_data_2d_3d
+  end subroutine CT_increment_data_2d_3d_r4
+
+  subroutine CT_increment_data_2d_3d_r8(var_in, weights, var, halo_size, bc_index, field_index,&
+      & scale_factor, scale_prev, exclude_flux_type, only_flux_type, pass_through_ice)
+    type(coupler_3d_bc_type),   intent(in)    :: var_in  !< BC_type structure with the data to add to the other type
+    real(DOUBLE_KIND), dimension(:,:,:),     intent(in)    :: weights !< An array of normalized weights for the 3d-data to
+                                                         !! increment the 2d-data.  There is no renormalization,
+                                                         !! so if the weights do not sum to 1 in the 3rd dimension
+                                                         !! there may be adverse consequences!
+    type(coupler_2d_bc_type),   intent(inout) :: var !< The BC_type structure whose fields are being incremented
+    integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default
+    integer,          optional, intent(in)    :: bc_index  !< The index of the boundary condition
+                                                         !! that is being copied
+    integer,          optional, intent(in)    :: field_index !< The index of the field in the
+                                                         !! boundary condition that is being copied
+    real(DOUBLE_KIND),optional, intent(in)    :: scale_factor  !< A scaling factor for the data that is being added
+    real(DOUBLE_KIND),optional, intent(in)    :: scale_prev    !< A scaling factor for the data that is already here
+    character(len=*), optional, intent(in)    :: exclude_flux_type !< A string describing which types
+                                                         !! of fluxes to exclude from this increment.
+    character(len=*), optional, intent(in)    :: only_flux_type    !< A string describing which types
+                                                         !! of fluxes to include from this increment.
+    logical,          optional, intent(in)    :: pass_through_ice !< If true, only increment BCs whose
+                                                         !! value of pass_through ice matches this
+
+    real(DOUBLE_KIND) :: scale, sc_prev
+    logical :: increment_bc
+    integer :: i, j, k, m, n, n1, n2, halo
+    integer :: io1, jo1, iow, jow, kow  ! Offsets to account for different index conventions.
+
+    scale = 1.0
+    if (present(scale_factor)) scale = scale_factor
+    sc_prev = 1.0
+    if (present(scale_prev)) sc_prev = scale_prev
+
+    if (present(bc_index)) then
+      if (bc_index > var_in%num_bcs)&
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: bc_index is present and exceeds var_in%num_bcs.")
+      if (present(field_index)) then ; if (field_index > var_in%bc(bc_index)%num_fields)&
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: field_index is present and exceeds num_fields for" //&
+          & trim(var_in%bc(bc_index)%name) )
+      endif
+    elseif (present(field_index)) then
+      call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: bc_index must be present if field_index is present.")
+    endif
+
+    halo = 0
+    if (present(halo_size)) halo = halo_size
+
+    n1 = 1
+    n2 = var_in%num_bcs
+    if (present(bc_index)) then
+      n1 = bc_index
+      n2 = bc_index
+    endif
+
+    if (n2 >= n1) then
+      ! A more consciencious implementation would include a more descriptive error messages.
+      if ((var_in%iec-var_in%isc) /= (var%iec-var%isc))&
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: There is an i-direction computational domain size mismatch.")
+      if ((var_in%jec-var_in%jsc) /= (var%jec-var%jsc))&
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: There is a j-direction computational domain size mismatch.")
+      if ((1+var_in%ke-var_in%ks) /= size(weights,3))&
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: There is a k-direction size mismatch with the weights array.")
+      if ((var_in%isc-var_in%isd < halo) .or. (var_in%ied-var_in%iec < halo))&
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: Excessive i-direction halo size for the input structure.")
+      if ((var_in%jsc-var_in%jsd < halo) .or. (var_in%jed-var_in%jec < halo))&
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: Excessive j-direction halo size for the input structure.")
+      if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: Excessive i-direction halo size for the output structure.")
+      if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: Excessive j-direction halo size for the output structure.")
+
+      if ((1+var%iec-var%isc) == size(weights,1)) then
+        iow = 1 - var%isc
+      elseif ((1+var%ied-var%isd) == size(weights,1)) then
+        iow = 1 - var%isd
+      elseif ((1+var_in%ied-var_in%isd) == size(weights,1)) then
+        iow = 1 + (var_in%isc - var_in%isd) - var%isc
+      else
+        call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: weights array must be the i-size of a computational or data domain.")
+      endif
+      if ((1+var%jec-var%jsc) == size(weights,2)) then
+        jow = 1 - var%jsc
+      elseif ((1+var%jed-var%jsd) == size(weights,2)) then
+        jow = 1 - var%jsd
+      elseif ((1+var_in%jed-var_in%jsd) == size(weights,2)) then
+        jow = 1 + (var_in%jsc - var_in%jsd) - var%jsc
+      else
+        call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: weights array must be the j-size of a computational or data domain.")
+      endif
+
+      io1 = var_in%isc - var%isc
+      jo1 = var_in%jsc - var%jsc
+      kow = 1 - var_in%ks
+    endif
+
+    do n = n1, n2
+      increment_bc = .true.
+      if (increment_bc .and. present(exclude_flux_type))&
+          & increment_bc = .not.(trim(var_in%bc(n)%flux_type) == trim(exclude_flux_type))
+      if (increment_bc .and. present(only_flux_type))&
+          & increment_bc = (trim(var_in%bc(n)%flux_type) == trim(only_flux_type))
+      if (increment_bc .and. present(pass_through_ice))&
+          & increment_bc = (pass_through_ice .eqv. var_in%bc(n)%pass_through_ice)
+      if (.not.increment_bc) cycle
+
+      do m = 1, var_in%bc(n)%num_fields
+        if (present(field_index)) then
+          if (m /= field_index) cycle
+        endif
+        if ( associated(var%bc(n)%field(m)%values_8) ) then
+          do k=var_in%ks,var_in%ke
+            do j=var%jsc-halo,var%jec+halo
+              do i=var%isc-halo,var%iec+halo
+                var%bc(n)%field(m)%values_8(i,j) = sc_prev * var%bc(n)%field(m)%values_8(i,j) +&
+                    & (scale * weights(i+iow,j+jow,k+kow)) * var_in%bc(n)%field(m)%values_8(i+io1,j+io1,k)
+              enddo
+            enddo
+          enddo
+        endif
+      enddo
+    enddo
+  end subroutine CT_increment_data_2d_3d_r8
 
   !> @brief Extract a 2d field from a coupler_2d_bc_type
   !!
@@ -2172,17 +2938,17 @@ contains
   !! @throw FATAL, "There is an j-direction computational domain size mismatch."
   !! @throw FATAL, "The target array with i-dimension size 'n' is too small to match the data of size 'd'"
   !! @throw FATAL, "The target array with j-dimension size 'n' is too small to match the data of size 'd'"
-  subroutine CT_extract_data_2d(var_in, bc_index, field_index, array_out,&
+  subroutine CT_extract_data_2d_r4(var_in, bc_index, field_index, array_out,&
       & scale_factor, halo_size, idim, jdim)
     type(coupler_2d_bc_type),   intent(in)    :: var_in    !< BC_type structure with the data to extract
     integer,                    intent(in)    :: bc_index  !< The index of the boundary condition
                                                            !! that is being copied
     integer,                    intent(in)    :: field_index !< The index of the field in the
                                                            !! boundary condition that is being copied
-    real, dimension(1:,1:),     intent(out)   :: array_out !< The recipient array for the field; its size
+    real(FLOAT_KIND), dimension(1:,1:),     intent(out)   :: array_out !< The recipient array for the field; its size
                                                            !! must match the size of the data being copied
                                                            !! unless idim and jdim are supplied.
-    real,             optional, intent(in)    :: scale_factor !< A scaling factor for the data that is being added
+    real(FLOAT_KIND),             optional, intent(in)    :: scale_factor !< A scaling factor for the data that is being added
     integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default
     integer, dimension(4), optional, intent(in) :: idim    !< The data and computational domain extents of
                                                            !! the first dimension of the output array
@@ -2192,10 +2958,10 @@ contains
                                                            !! in a non-decreasing list
 
     character(len=*), parameter :: error_header =&
-        & '==>Error from coupler_types_mod (CT_extract_data_2d):'
+        & '==>Error from coupler_types_mod (CT_extract_data_2d_r4):'
     character(len=400)      :: error_msg
 
-    real :: scale
+    real(FLOAT_KIND) :: scale
     integer :: i, j, halo, i_off, j_off
 
     if (bc_index <= 0) then
@@ -2287,10 +3053,130 @@ contains
 
     do j=var_in%jsc-halo,var_in%jec+halo
       do i=var_in%isc-halo,var_in%iec+halo
-        array_out(i+i_off,j+j_off) = scale * var_in%bc(bc_index)%field(field_index)%values(i,j)
+        array_out(i+i_off,j+j_off) = scale * var_in%bc(bc_index)%field(field_index)%values_4(i,j)
       enddo
     enddo
-  end subroutine CT_extract_data_2d
+  end subroutine CT_extract_data_2d_r4
+
+  subroutine CT_extract_data_2d_r8(var_in, bc_index, field_index, array_out,&
+      & scale_factor, halo_size, idim, jdim)
+    type(coupler_2d_bc_type),   intent(in)    :: var_in    !< BC_type structure with the data to extract
+    integer,                    intent(in)    :: bc_index  !< The index of the boundary condition
+                                                           !! that is being copied
+    integer,                    intent(in)    :: field_index !< The index of the field in the
+                                                           !! boundary condition that is being copied
+    real(DOUBLE_KIND), dimension(1:,1:),     intent(out)   :: array_out !< The recipient array for the field; its size
+                                                           !! must match the size of the data being copied
+                                                           !! unless idim and jdim are supplied.
+    real(DOUBLE_KIND),             optional, intent(in)    :: scale_factor !< A scaling factor for the data that is being added
+    integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default
+    integer, dimension(4), optional, intent(in) :: idim    !< The data and computational domain extents of
+                                                           !! the first dimension of the output array
+                                                           !! in a non-decreasing list
+    integer, dimension(4), optional, intent(in) :: jdim    !< The data and computational domain extents of
+                                                           !! the second dimension of the output array
+                                                           !! in a non-decreasing list
+
+    character(len=*), parameter :: error_header =&
+        & '==>Error from coupler_types_mod (CT_extract_data_2d_r8):'
+    character(len=400)      :: error_msg
+
+    real(DOUBLE_KIND) :: scale
+    integer :: i, j, halo, i_off, j_off
+
+    if (bc_index <= 0) then
+      array_out(:,:) = 0.0
+      return
+    endif
+
+    halo = 0
+    if (present(halo_size)) halo = halo_size
+    scale = 1.0
+    if (present(scale_factor)) scale = scale_factor
+
+    if ((var_in%isc-var_in%isd < halo) .or. (var_in%ied-var_in%iec < halo))&
+        & call mpp_error(FATAL, trim(error_header)//" Excessive i-direction halo size for the input structure.")
+    if ((var_in%jsc-var_in%jsd < halo) .or. (var_in%jed-var_in%jec < halo))&
+        & call mpp_error(FATAL, trim(error_header)//" Excessive j-direction halo size for the input structure.")
+
+    if (bc_index > var_in%num_bcs)&
+        & call mpp_error(FATAL, trim(error_header)//" bc_index exceeds var_in%num_bcs.")
+    if (field_index > var_in%bc(bc_index)%num_fields)&
+        & call mpp_error(FATAL, trim(error_header)//" field_index exceeds num_fields for" //&
+        & trim(var_in%bc(bc_index)%name) )
+
+    ! Do error checking on the i-dimension and determine the array offsets.
+    if (present(idim)) then
+      if ((idim(1) > idim(2)) .or. (idim(3) > idim(4))) then
+        write (error_msg, *) trim(error_header), ' Disordered i-dimension index bound list ', idim
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if (size(array_out,1) /= (1+idim(4)-idim(1))) then
+        write (error_msg, *) trim(error_header), ' The declared i-dimension size of ',&
+            & (1+idim(4)-idim(1)), ' does not match the actual size of ', size(array_out,1)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if ((var_in%iec-var_in%isc) /= (idim(3)-idim(2)))&
+          & call mpp_error(FATAL, trim(error_header)//" There is an i-direction computational domain size mismatch.")
+      if ((idim(2)-idim(1) < halo) .or. (idim(4)-idim(3) < halo))&
+          & call mpp_error(FATAL, trim(error_header)//" Excessive i-direction halo size for the output array.")
+      if (size(array_out,1) < 2*halo + 1 + var_in%iec - var_in%isc) then
+        write (error_msg, *) trim(error_header), ' The target array with i-dimension size ',&
+            & (1+idim(4)-idim(1)), ' is too small to match the data of size ',&
+            & (2*halo + 1 + var_in%iec - var_in%isc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+
+      i_off = (1-idim(1)) + (idim(2)-var_in%isc)
+    else
+      if (size(array_out,1) < 2*halo + 1 + var_in%iec - var_in%isc) then
+        write (error_msg, *) trim(error_header), ' The target array with i-dimension size ',&
+            & size(array_out,1), ' does not match the data of size ',&
+            & (2*halo + 1 + var_in%iec - var_in%isc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      i_off = 1 - (var_in%isc-halo)
+    endif
+
+    ! Do error checking on the j-dimension and determine the array offsets.
+    if (present(jdim)) then
+      if ((jdim(1) > jdim(2)) .or. (jdim(3) > jdim(4))) then
+        write (error_msg, *) trim(error_header), ' Disordered j-dimension index bound list ', jdim
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if (size(array_out,2) /= (1+jdim(4)-jdim(1))) then
+        write (error_msg, *) trim(error_header), ' The declared j-dimension size of ',&
+            & (1+jdim(4)-jdim(1)), ' does not match the actual size of ', size(array_out,2)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if ((var_in%jec-var_in%jsc) /= (jdim(3)-jdim(2)))&
+          & call mpp_error(FATAL, trim(error_header)//" There is an j-direction computational domain size mismatch.")
+      if ((jdim(2)-jdim(1) < halo) .or. (jdim(4)-jdim(3) < halo))&
+          & call mpp_error(FATAL, trim(error_header)//" Excessive j-direction halo size for the output array.")
+      if (size(array_out,2) < 2*halo + 1 + var_in%jec - var_in%jsc) then
+        write (error_msg, *) trim(error_header), ' The target array with j-dimension size ',&
+            & (1+jdim(4)-jdim(1)), ' is too small to match the data of size ',&
+            & (2*halo + 1 + var_in%jec - var_in%jsc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+
+      j_off = (1-jdim(1)) + (jdim(2)-var_in%jsc)
+    else
+      if (size(array_out,2) < 2*halo + 1 + var_in%jec - var_in%jsc) then
+        write (error_msg, *) trim(error_header), ' The target array with j-dimension size ',&
+            & size(array_out,2), ' does not match the data of size ',&
+            & (2*halo + 1 + var_in%jec - var_in%jsc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      j_off = 1 - (var_in%jsc-halo)
+    endif
+
+    do j=var_in%jsc-halo,var_in%jec+halo
+      do i=var_in%isc-halo,var_in%iec+halo
+        array_out(i+i_off,j+j_off) = scale * var_in%bc(bc_index)%field(field_index)%values_8(i,j)
+      enddo
+    enddo
+  end subroutine CT_extract_data_2d_r8
 
   !! @brief Extract a single k-level of a 3d field from a coupler_3d_bc_type
   !!
@@ -2309,7 +3195,7 @@ contains
   !! @throw FATAL, "The target array with i-dimension size 'n' is too small to match the data of size 'd'"
   !! @throw FATAL, "The target array with j-dimension size 'n' is too small to match the data of size 'd'"
   !! @throw FATAL, "The extracted k-index of 'k' is outside of the valid range of 'ks' to 'ke'"
-  subroutine CT_extract_data_3d_2d(var_in, bc_index, field_index, k_in, array_out,&
+  subroutine CT_extract_data_3d_2d_r4(var_in, bc_index, field_index, k_in, array_out,&
       & scale_factor, halo_size, idim, jdim)
     type(coupler_3d_bc_type),   intent(in)    :: var_in    !< BC_type structure with the data to extract
     integer,                    intent(in)    :: bc_index  !< The index of the boundary condition
@@ -2317,10 +3203,10 @@ contains
     integer,                    intent(in)    :: field_index !< The index of the field in the
                                                            !! boundary condition that is being copied
     integer,                    intent(in)    :: k_in      !< The k-index to extract
-    real, dimension(1:,1:),     intent(out)   :: array_out !< The recipient array for the field; its size
+    real(FLOAT_KIND), dimension(1:,1:),     intent(out)   :: array_out !< The recipient array for the field; its size
                                                            !! must match the size of the data being copied
                                                            !! unless idim and jdim are supplied.
-    real,             optional, intent(in)    :: scale_factor !< A scaling factor for the data that is being added
+    real(FLOAT_KIND),             optional, intent(in)    :: scale_factor !< A scaling factor for the data that is being added
     integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default
     integer, dimension(4), optional, intent(in) :: idim    !< The data and computational domain extents of
                                                            !! the first dimension of the output array
@@ -2329,10 +3215,10 @@ contains
                                                            !! the second dimension of the output array
                                                            !! in a non-decreasing list
     character(len=*), parameter :: error_header =&
-        & '==>Error from coupler_types_mod (CT_extract_data_3d_2d):'
+        & '==>Error from coupler_types_mod (CT_extract_data_3d_2d_r4):'
     character(len=400)      :: error_msg
 
-    real :: scale
+    real(FLOAT_KIND) :: scale
     integer :: i, j, k, halo, i_off, j_off
 
     if (bc_index <= 0) then
@@ -2430,10 +3316,136 @@ contains
 
     do j=var_in%jsc-halo,var_in%jec+halo
       do i=var_in%isc-halo,var_in%iec+halo
-        array_out(i+i_off,j+j_off) = scale * var_in%bc(bc_index)%field(field_index)%values(i,j,k_in)
+        array_out(i+i_off,j+j_off) = scale * var_in%bc(bc_index)%field(field_index)%values_4(i,j,k_in)
       enddo
     enddo
-  end subroutine CT_extract_data_3d_2d
+  end subroutine CT_extract_data_3d_2d_r4
+
+  subroutine CT_extract_data_3d_2d_r8(var_in, bc_index, field_index, k_in, array_out,&
+      & scale_factor, halo_size, idim, jdim)
+    type(coupler_3d_bc_type),   intent(in)    :: var_in    !< BC_type structure with the data to extract
+    integer,                    intent(in)    :: bc_index  !< The index of the boundary condition
+                                                           !! that is being copied
+    integer,                    intent(in)    :: field_index !< The index of the field in the
+                                                           !! boundary condition that is being copied
+    integer,                    intent(in)    :: k_in      !< The k-index to extract
+    real(DOUBLE_KIND), dimension(1:,1:),     intent(out)   :: array_out !< The recipient array for the field; its size
+                                                           !! must match the size of the data being copied
+                                                           !! unless idim and jdim are supplied.
+    real(DOUBLE_KIND),             optional, intent(in)    :: scale_factor !< A scaling factor for the data that is being added
+    integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default
+    integer, dimension(4), optional, intent(in) :: idim    !< The data and computational domain extents of
+                                                           !! the first dimension of the output array
+                                                           !! in a non-decreasing list
+    integer, dimension(4), optional, intent(in) :: jdim    !< The data and computational domain extents of
+                                                           !! the second dimension of the output array
+                                                           !! in a non-decreasing list
+    character(len=*), parameter :: error_header =&
+        & '==>Error from coupler_types_mod (CT_extract_data_3d_2d_r8):'
+    character(len=400)      :: error_msg
+
+    real(DOUBLE_KIND) :: scale
+    integer :: i, j, k, halo, i_off, j_off
+
+    if (bc_index <= 0) then
+      array_out(:,:) = 0.0
+      return
+    endif
+
+    halo = 0
+    if (present(halo_size)) halo = halo_size
+    scale = 1.0
+    if (present(scale_factor)) scale = scale_factor
+
+    if ((var_in%isc-var_in%isd < halo) .or. (var_in%ied-var_in%iec < halo))&
+        & call mpp_error(FATAL, trim(error_header)//" Excessive i-direction halo size for the input structure.")
+    if ((var_in%jsc-var_in%jsd < halo) .or. (var_in%jed-var_in%jec < halo))&
+        & call mpp_error(FATAL, trim(error_header)//" Excessive j-direction halo size for the input structure.")
+
+    if (bc_index > var_in%num_bcs)&
+        & call mpp_error(FATAL, trim(error_header)//" bc_index exceeds var_in%num_bcs.")
+    if (field_index > var_in%bc(bc_index)%num_fields)&
+        & call mpp_error(FATAL, trim(error_header)//" field_index exceeds num_fields for" //&
+        & trim(var_in%bc(bc_index)%name) )
+
+    ! Do error checking on the i-dimension and determine the array offsets.
+    if (present(idim)) then
+      if ((idim(1) > idim(2)) .or. (idim(3) > idim(4))) then
+        write (error_msg, *) trim(error_header), ' Disordered i-dimension index bound list ', idim
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if (size(array_out,1) /= (1+idim(4)-idim(1))) then
+        write (error_msg, *) trim(error_header), ' The declared i-dimension size of ',&
+            & (1+idim(4)-idim(1)), ' does not match the actual size of ', size(array_out,1)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if ((var_in%iec-var_in%isc) /= (idim(3)-idim(2)))&
+          & call mpp_error(FATAL, trim(error_header)//" There is an i-direction computational domain size mismatch.")
+      if ((idim(2)-idim(1) < halo) .or. (idim(4)-idim(3) < halo))&
+          & call mpp_error(FATAL, trim(error_header)//" Excessive i-direction halo size for the output array.")
+      if (size(array_out,1) < 2*halo + 1 + var_in%iec - var_in%isc) then
+        write (error_msg, *) trim(error_header), ' The target array with i-dimension size ',&
+            & (1+idim(4)-idim(1)), ' is too small to match the data of size ',&
+            & (2*halo + 1 + var_in%iec - var_in%isc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+
+      i_off = (1-idim(1)) + (idim(2)-var_in%isc)
+    else
+      if (size(array_out,1) < 2*halo + 1 + var_in%iec - var_in%isc) then
+        write (error_msg, *) trim(error_header), ' The target array with i-dimension size ',&
+            & size(array_out,1), ' does not match the data of size ',&
+            & (2*halo + 1 + var_in%iec - var_in%isc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      i_off = 1 - (var_in%isc-halo)
+    endif
+
+    ! Do error checking on the j-dimension and determine the array offsets.
+    if (present(jdim)) then
+      if ((jdim(1) > jdim(2)) .or. (jdim(3) > jdim(4))) then
+        write (error_msg, *) trim(error_header), ' Disordered j-dimension index bound list ', jdim
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if (size(array_out,2) /= (1+jdim(4)-jdim(1))) then
+        write (error_msg, *) trim(error_header), ' The declared j-dimension size of ',&
+            & (1+jdim(4)-jdim(1)), ' does not match the actual size of ', size(array_out,2)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if ((var_in%jec-var_in%jsc) /= (jdim(3)-jdim(2)))&
+          & call mpp_error(FATAL, trim(error_header)//" There is an j-direction computational domain size mismatch.")
+      if ((jdim(2)-jdim(1) < halo) .or. (jdim(4)-jdim(3) < halo))&
+          & call mpp_error(FATAL, trim(error_header)//" Excessive j-direction halo size for the output array.")
+      if (size(array_out,2) < 2*halo + 1 + var_in%jec - var_in%jsc) then
+        write (error_msg, *) trim(error_header), ' The target array with j-dimension size ',&
+            & (1+jdim(4)-jdim(1)), ' is too small to match the data of size ',&
+            & (2*halo + 1 + var_in%jec - var_in%jsc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+
+      j_off = (1-jdim(1)) + (jdim(2)-var_in%jsc)
+    else
+      if (size(array_out,2) < 2*halo + 1 + var_in%jec - var_in%jsc) then
+        write (error_msg, *) trim(error_header), ' The target array with j-dimension size ',&
+            & size(array_out,2), ' does not match the data of size ',&
+            & (2*halo + 1 + var_in%jec - var_in%jsc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      j_off = 1 - (var_in%jsc-halo)
+    endif
+
+    if ((k_in > var_in%ke) .or. (k_in < var_in%ks)) then
+      write (error_msg, *) trim(error_header), ' The extracted k-index of ', k_in,&
+          & ' is outside of the valid range of ', var_in%ks, ' to ', var_in%ke
+      call mpp_error(FATAL, trim(error_msg))
+    endif
+
+    do j=var_in%jsc-halo,var_in%jec+halo
+      do i=var_in%isc-halo,var_in%iec+halo
+        array_out(i+i_off,j+j_off) = scale * var_in%bc(bc_index)%field(field_index)%values_8(i,j,k_in)
+      enddo
+    enddo
+  end subroutine CT_extract_data_3d_2d_r8
 
   !> @brief Extract single 3d field from a coupler_3d_bc_type
   !!
@@ -2452,17 +3464,17 @@ contains
   !! @throw FATAL, "The target array with i-dimension size 'n' is too small to match the data of size 'd'"
   !! @throw FATAL, "The target array with j-dimension size 'n' is too small to match the data of size 'd'"
   !! @throw FATAL, "The target array with k-dimension size 'n' does not match the data of size 'd'"
-  subroutine CT_extract_data_3d(var_in, bc_index, field_index, array_out,&
+  subroutine CT_extract_data_3d_r4(var_in, bc_index, field_index, array_out,&
       & scale_factor, halo_size, idim, jdim)
     type(coupler_3d_bc_type),   intent(in)    :: var_in    !< BC_type structure with the data to extract
     integer,                    intent(in)    :: bc_index  !< The index of the boundary condition
                                                            !! that is being copied
     integer,                    intent(in)    :: field_index !< The index of the field in the
                                                            !! boundary condition that is being copied
-    real, dimension(1:,1:,1:),  intent(out)   :: array_out !< The recipient array for the field; its size
+    real(FLOAT_KIND), dimension(1:,1:,1:),  intent(out)   :: array_out !< The recipient array for the field; its size
                                                            !! must match the size of the data being copied
                                                            !! unless idim and jdim are supplied.
-    real,             optional, intent(in)    :: scale_factor !< A scaling factor for the data that is being added
+    real(FLOAT_KIND),             optional, intent(in)    :: scale_factor !< A scaling factor for the data that is being added
     integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default
     integer, dimension(4), optional, intent(in) :: idim    !< The data and computational domain extents of
                                                            !! the first dimension of the output array
@@ -2472,10 +3484,10 @@ contains
                                                            !! in a non-decreasing list
 
     character(len=*), parameter :: error_header =&
-        & '==>Error from coupler_types_mod (CT_extract_data_3d):'
+        & '==>Error from coupler_types_mod (CT_extract_data_3d_r4):'
     character(len=400) :: error_msg
 
-    real :: scale
+    real(FLOAT_KIND) :: scale
     integer :: i, j, k, halo, i_off, j_off, k_off
 
     if (bc_index <= 0) then
@@ -2576,11 +3588,141 @@ contains
     do k=var_in%ks,var_in%ke
       do j=var_in%jsc-halo,var_in%jec+halo
         do i=var_in%isc-halo,var_in%iec+halo
-          array_out(i+i_off,j+j_off,k+k_off) = scale * var_in%bc(bc_index)%field(field_index)%values(i,j,k)
+          array_out(i+i_off,j+j_off,k+k_off) = scale * var_in%bc(bc_index)%field(field_index)%values_4(i,j,k)
         enddo
       enddo
     enddo
-  end subroutine CT_extract_data_3d
+  end subroutine CT_extract_data_3d_r4
+
+  subroutine CT_extract_data_3d_r8(var_in, bc_index, field_index, array_out,&
+      & scale_factor, halo_size, idim, jdim)
+    type(coupler_3d_bc_type),   intent(in)    :: var_in    !< BC_type structure with the data to extract
+    integer,                    intent(in)    :: bc_index  !< The index of the boundary condition
+                                                           !! that is being copied
+    integer,                    intent(in)    :: field_index !< The index of the field in the
+                                                           !! boundary condition that is being copied
+    real(DOUBLE_KIND), dimension(1:,1:,1:),  intent(out)   :: array_out !< The recipient array for the field; its size
+                                                           !! must match the size of the data being copied
+                                                           !! unless idim and jdim are supplied.
+    real(DOUBLE_KIND),             optional, intent(in)    :: scale_factor !< A scaling factor for the data that is being added
+    integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default
+    integer, dimension(4), optional, intent(in) :: idim    !< The data and computational domain extents of
+                                                           !! the first dimension of the output array
+                                                           !! in a non-decreasing list
+    integer, dimension(4), optional, intent(in) :: jdim    !< The data and computational domain extents of
+                                                           !! the second dimension of the output array
+                                                           !! in a non-decreasing list
+
+    character(len=*), parameter :: error_header =&
+        & '==>Error from coupler_types_mod (CT_extract_data_3d_r4):'
+    character(len=400) :: error_msg
+
+    real(DOUBLE_KIND) :: scale
+    integer :: i, j, k, halo, i_off, j_off, k_off
+
+    if (bc_index <= 0) then
+      array_out(:,:,:) = 0.0
+      return
+    endif
+
+    halo = 0
+    if (present(halo_size)) halo = halo_size
+    scale = 1.0
+    if (present(scale_factor)) scale = scale_factor
+
+    if ((var_in%isc-var_in%isd < halo) .or. (var_in%ied-var_in%iec < halo))&
+        & call mpp_error(FATAL, trim(error_header)//" Excessive i-direction halo size for the input structure.")
+    if ((var_in%jsc-var_in%jsd < halo) .or. (var_in%jed-var_in%jec < halo))&
+        & call mpp_error(FATAL, trim(error_header)//" Excessive j-direction halo size for the input structure.")
+
+    if (bc_index > var_in%num_bcs)&
+        & call mpp_error(FATAL, trim(error_header)//" bc_index exceeds var_in%num_bcs.")
+    if (field_index > var_in%bc(bc_index)%num_fields)&
+        & call mpp_error(FATAL, trim(error_header)//" field_index exceeds num_fields for" //&
+        & trim(var_in%bc(bc_index)%name) )
+
+    ! Do error checking on the i-dimension and determine the array offsets.
+    if (present(idim)) then
+      if ((idim(1) > idim(2)) .or. (idim(3) > idim(4))) then
+        write (error_msg, *) trim(error_header), ' Disordered i-dimension index bound list ', idim
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if (size(array_out,1) /= (1+idim(4)-idim(1))) then
+        write (error_msg, *) trim(error_header), ' The declared i-dimension size of ',&
+            & (1+idim(4)-idim(1)), ' does not match the actual size of ', size(array_out,1)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if ((var_in%iec-var_in%isc) /= (idim(3)-idim(2)))&
+          & call mpp_error(FATAL, trim(error_header)//" There is an i-direction computational domain size mismatch.")
+      if ((idim(2)-idim(1) < halo) .or. (idim(4)-idim(3) < halo))&
+          & call mpp_error(FATAL, trim(error_header)//" Excessive i-direction halo size for the output array.")
+      if (size(array_out,1) < 2*halo + 1 + var_in%iec - var_in%isc) then
+        write (error_msg, *) trim(error_header), ' The target array with i-dimension size ',&
+            & (1+idim(4)-idim(1)), ' is too small to match the data of size ',&
+            & (2*halo + 1 + var_in%iec - var_in%isc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+
+      i_off = (1-idim(1)) + (idim(2)-var_in%isc)
+    else
+      if (size(array_out,1) < 2*halo + 1 + var_in%iec - var_in%isc) then
+        write (error_msg, *) trim(error_header), ' The target array with i-dimension size ',&
+            & size(array_out,1), ' does not match the data of size ',&
+            & (2*halo + 1 + var_in%iec - var_in%isc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      i_off = 1 - (var_in%isc-halo)
+    endif
+
+    ! Do error checking on the j-dimension and determine the array offsets.
+    if (present(jdim)) then
+      if ((jdim(1) > jdim(2)) .or. (jdim(3) > jdim(4))) then
+        write (error_msg, *) trim(error_header), ' Disordered j-dimension index bound list ', jdim
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if (size(array_out,2) /= (1+jdim(4)-jdim(1))) then
+        write (error_msg, *) trim(error_header), ' The declared j-dimension size of ',&
+            & (1+jdim(4)-jdim(1)), ' does not match the actual size of ', size(array_out,2)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if ((var_in%jec-var_in%jsc) /= (jdim(3)-jdim(2)))&
+          & call mpp_error(FATAL, trim(error_header)//" There is an j-direction computational domain size mismatch.")
+      if ((jdim(2)-jdim(1) < halo) .or. (jdim(4)-jdim(3) < halo))&
+          & call mpp_error(FATAL, trim(error_header)//" Excessive j-direction halo size for the output array.")
+      if (size(array_out,2) < 2*halo + 1 + var_in%jec - var_in%jsc) then
+        write (error_msg, *) trim(error_header), ' The target array with j-dimension size ',&
+            & (1+jdim(4)-jdim(1)), ' is too small to match the data of size ',&
+            & (2*halo + 1 + var_in%jec - var_in%jsc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+
+      j_off = (1-jdim(1)) + (jdim(2)-var_in%jsc)
+    else
+      if (size(array_out,2) < 2*halo + 1 + var_in%jec - var_in%jsc) then
+        write (error_msg, *) trim(error_header), ' The target array with j-dimension size ',&
+            & size(array_out,2), ' does not match the data of size ',&
+            & (2*halo + 1 + var_in%jec - var_in%jsc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      j_off = 1 - (var_in%jsc-halo)
+    endif
+
+    if (size(array_out,3) /= 1 + var_in%ke - var_in%ks) then
+      write (error_msg, *) trim(error_header), ' The target array with k-dimension size ',&
+          & size(array_out,3), ' does not match the data of size ',&
+          & (1 + var_in%ke - var_in%ks)
+      call mpp_error(FATAL, trim(error_msg))
+    endif
+    k_off = 1 - var_in%ks
+
+    do k=var_in%ks,var_in%ke
+      do j=var_in%jsc-halo,var_in%jec+halo
+        do i=var_in%isc-halo,var_in%iec+halo
+          array_out(i+i_off,j+j_off,k+k_off) = scale * var_in%bc(bc_index)%field(field_index)%values_8(i,j,k)
+        enddo
+      enddo
+    enddo
+  end subroutine CT_extract_data_3d_r8
 
   !> @brief Set single 2d field in coupler_3d_bc_type
   !!
@@ -2598,9 +3740,9 @@ contains
   !! @throw FATAL, "There is an j-direction computational domain size mismatch."
   !! @throw FATAL, "The target array with i-dimension size 'n' is too small to match the data of size 'd'"
   !! @throw FATAL, "The target array with j-dimension size 'n' is too small to match the data of size 'd'"
-  subroutine CT_set_data_2d(array_in, bc_index, field_index, var,&
+  subroutine CT_set_data_2d_r4(array_in, bc_index, field_index, var,&
       & scale_factor, halo_size, idim, jdim)
-    real, dimension(1:,1:),     intent(in)   :: array_in   !< The source array for the field; its size
+    real(FLOAT_KIND), dimension(1:,1:),     intent(in)   :: array_in   !< The source array for the field; its size
                                                            !! must match the size of the data being copied
                                                            !! unless idim and jdim are supplied.
     integer,                    intent(in)    :: bc_index  !< The index of the boundary condition
@@ -2608,7 +3750,7 @@ contains
     integer,                    intent(in)    :: field_index !< The index of the field in the
                                                            !! boundary condition that is being copied
     type(coupler_2d_bc_type),   intent(inout) :: var       !< BC_type structure with the data to set
-    real,             optional, intent(in)    :: scale_factor !< A scaling factor for the data that is being added
+    real(FLOAT_KIND),             optional, intent(in)    :: scale_factor !< A scaling factor for the data that is being added
     integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default
     integer, dimension(4), optional, intent(in) :: idim    !< The data and computational domain extents of
                                                            !! the first dimension of the output array
@@ -2617,10 +3759,10 @@ contains
                                                            !! the second dimension of the output array
                                                            !! in a non-decreasing list
     character(len=*), parameter :: error_header =&
-        & '==>Error from coupler_types_mod (CT_set_data_2d):'
+        & '==>Error from coupler_types_mod (CT_set_data_2d_r4):'
     character(len=400) :: error_msg
 
-    real :: scale
+    real(FLOAT_KIND) :: scale
     integer :: i, j, halo, i_off, j_off
 
     if (bc_index <= 0) return
@@ -2709,10 +3851,126 @@ contains
 
     do j=var%jsc-halo,var%jec+halo
       do i=var%isc-halo,var%iec+halo
-        var%bc(bc_index)%field(field_index)%values(i,j) = scale * array_in(i+i_off,j+j_off)
+        var%bc(bc_index)%field(field_index)%values_4(i,j) = scale * array_in(i+i_off,j+j_off)
       enddo
     enddo
-  end subroutine CT_set_data_2d
+  end subroutine CT_set_data_2d_r4
+
+  subroutine CT_set_data_2d_r8(array_in, bc_index, field_index, var,&
+      & scale_factor, halo_size, idim, jdim)
+    real(DOUBLE_KIND), dimension(1:,1:),     intent(in)   :: array_in   !< The source array for the field; its size
+                                                           !! must match the size of the data being copied
+                                                           !! unless idim and jdim are supplied.
+    integer,                    intent(in)    :: bc_index  !< The index of the boundary condition
+                                                           !! that is being copied
+    integer,                    intent(in)    :: field_index !< The index of the field in the
+                                                           !! boundary condition that is being copied
+    type(coupler_2d_bc_type),   intent(inout) :: var       !< BC_type structure with the data to set
+    real(DOUBLE_KIND),             optional, intent(in)    :: scale_factor !< A scaling factor for the data that is being added
+    integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default
+    integer, dimension(4), optional, intent(in) :: idim    !< The data and computational domain extents of
+                                                           !! the first dimension of the output array
+                                                           !! in a non-decreasing list
+    integer, dimension(4), optional, intent(in) :: jdim    !< The data and computational domain extents of
+                                                           !! the second dimension of the output array
+                                                           !! in a non-decreasing list
+    character(len=*), parameter :: error_header =&
+        & '==>Error from coupler_types_mod (CT_set_data_2d_r4):'
+    character(len=400) :: error_msg
+
+    real(DOUBLE_KIND) :: scale
+    integer :: i, j, halo, i_off, j_off
+
+    if (bc_index <= 0) return
+
+    halo = 0
+    if (present(halo_size)) halo = halo_size
+    scale = 1.0
+    if (present(scale_factor)) scale = scale_factor
+
+    if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
+        & call mpp_error(FATAL, trim(error_header)//" Excessive i-direction halo size for the input structure.")
+    if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
+        & call mpp_error(FATAL, trim(error_header)//" Excessive j-direction halo size for the input structure.")
+
+    if (bc_index > var%num_bcs) &
+        call mpp_error(FATAL, trim(error_header)//" bc_index exceeds var%num_bcs.")
+    if (field_index > var%bc(bc_index)%num_fields)&
+        & call mpp_error(FATAL, trim(error_header)//" field_index exceeds num_fields for" //&
+        & trim(var%bc(bc_index)%name) )
+
+    ! Do error checking on the i-dimension and determine the array offsets.
+    if (present(idim)) then
+      if ((idim(1) > idim(2)) .or. (idim(3) > idim(4))) then
+        write (error_msg, *) trim(error_header), ' Disordered i-dimension index bound list ', idim
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if (size(array_in,1) /= (1+idim(4)-idim(1))) then
+        write (error_msg, *) trim(error_header), ' The declared i-dimension size of ',&
+            & (1+idim(4)-idim(1)), ' does not match the actual size of ', size(array_in,1)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if ((var%iec-var%isc) /= (idim(3)-idim(2)))&
+          & call mpp_error(FATAL, trim(error_header)//" There is an i-direction computational domain size mismatch.")
+      if ((idim(2)-idim(1) < halo) .or. (idim(4)-idim(3) < halo))&
+          & call mpp_error(FATAL, trim(error_header)//" Excessive i-direction halo size for the output array.")
+      if (size(array_in,1) < 2*halo + 1 + var%iec - var%isc) then
+        write (error_msg, *) trim(error_header), ' The target array with i-dimension size ',&
+            & (1+idim(4)-idim(1)), ' is too small to match the data of size ',&
+            & (2*halo + 1 + var%iec - var%isc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+
+      i_off = (1-idim(1)) + (idim(2)-var%isc)
+    else
+      if (size(array_in,1) < 2*halo + 1 + var%iec - var%isc) then
+        write (error_msg, *) trim(error_header), ' The target array with i-dimension size ',&
+            & size(array_in,1), ' does not match the data of size ',&
+            & (2*halo + 1 + var%iec - var%isc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      i_off = 1 - (var%isc-halo)
+    endif
+
+    ! Do error checking on the j-dimension and determine the array offsets.
+    if (present(jdim)) then
+      if ((jdim(1) > jdim(2)) .or. (jdim(3) > jdim(4))) then
+        write (error_msg, *) trim(error_header), ' Disordered j-dimension index bound list ', jdim
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if (size(array_in,2) /= (1+jdim(4)-jdim(1))) then
+        write (error_msg, *) trim(error_header), ' The declared j-dimension size of ',&
+            & (1+jdim(4)-jdim(1)), ' does not match the actual size of ', size(array_in,2)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if ((var%jec-var%jsc) /= (jdim(3)-jdim(2)))&
+          & call mpp_error(FATAL, trim(error_header)//" There is an j-direction computational domain size mismatch.")
+      if ((jdim(2)-jdim(1) < halo) .or. (jdim(4)-jdim(3) < halo))&
+          & call mpp_error(FATAL, trim(error_header)//" Excessive j-direction halo size for the output array.")
+      if (size(array_in,2) < 2*halo + 1 + var%jec - var%jsc) then
+        write (error_msg, *) trim(error_header), ' The target array with j-dimension size ',&
+            & (1+jdim(4)-jdim(1)), ' is too small to match the data of size ',&
+            & (2*halo + 1 + var%jec - var%jsc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+
+      j_off = (1-jdim(1)) + (jdim(2)-var%jsc)
+    else
+      if (size(array_in,2) < 2*halo + 1 + var%jec - var%jsc) then
+        write (error_msg, *) trim(error_header), ' The target array with j-dimension size ',&
+            & size(array_in,2), ' does not match the data of size ',&
+            & (2*halo + 1 + var%jec - var%jsc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      j_off = 1 - (var%jsc-halo)
+    endif
+
+    do j=var%jsc-halo,var%jec+halo
+      do i=var%isc-halo,var%iec+halo
+        var%bc(bc_index)%field(field_index)%values_8(i,j) = scale * array_in(i+i_off,j+j_off)
+      enddo
+    enddo
+  end subroutine CT_set_data_2d_r8
 
   !> @brief Set one k-level of a single 3d field in a coupler_3d_bc_type
   !!
@@ -2732,9 +3990,9 @@ contains
   !! @throw FATAL, "The target array with i-dimension size 'n' is too small to match the data of size 'd'"
   !! @throw FATAL, "The target array with j-dimension size 'n' is too small to match the data of size 'd'"
   !! @throw FATAL, "The k-index of 'k' is outside of the valid range of 'ks' to 'ke'"
-  subroutine CT_set_data_2d_3d(array_in, bc_index, field_index, k_out, var,&
+  subroutine CT_set_data_2d_3d_r4(array_in, bc_index, field_index, k_out, var,&
       & scale_factor, halo_size, idim, jdim)
-    real, dimension(1:,1:),     intent(in)    :: array_in  !< The source array for the field; its size
+    real(FLOAT_KIND), dimension(1:,1:),     intent(in)    :: array_in  !< The source array for the field; its size
                                                            !! must match the size of the data being copied
                                                            !! unless idim and jdim are supplied.
     integer,                    intent(in)    :: bc_index  !< The index of the boundary condition
@@ -2743,7 +4001,7 @@ contains
                                                            !! boundary condition that is being copied
     integer,                    intent(in)    :: k_out     !< The k-index to set
     type(coupler_3d_bc_type),   intent(inout) :: var       !< BC_type structure with the data to be set
-    real,             optional, intent(in)    :: scale_factor !< A scaling factor for the data that is being added
+    real(FLOAT_KIND),             optional, intent(in)    :: scale_factor !< A scaling factor for the data that is being added
     integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default
     integer, dimension(4), optional, intent(in) :: idim    !< The data and computational domain extents of
                                                            !! the first dimension of the output array
@@ -2753,10 +4011,10 @@ contains
                                                            !! in a non-decreasing list
 
     character(len=*), parameter :: error_header =&
-        & '==>Error from coupler_types_mod (CT_set_data_3d_2d):'
+        & '==>Error from coupler_types_mod (CT_set_data_3d_2d_r4):'
     character(len=400)      :: error_msg
 
-    real :: scale
+    real(FLOAT_KIND) :: scale
     integer :: i, j, halo, i_off, j_off
 
     if (bc_index <= 0) return
@@ -2851,10 +4109,134 @@ contains
 
     do j=var%jsc-halo,var%jec+halo
       do i=var%isc-halo,var%iec+halo
-        var%bc(bc_index)%field(field_index)%values(i,j,k_out) = scale * array_in(i+i_off,j+j_off)
+        var%bc(bc_index)%field(field_index)%values_4(i,j,k_out) = scale * array_in(i+i_off,j+j_off)
       enddo
     enddo
-  end subroutine CT_set_data_2d_3d
+  end subroutine CT_set_data_2d_3d_r4
+
+  subroutine CT_set_data_2d_3d_r8(array_in, bc_index, field_index, k_out, var,&
+      & scale_factor, halo_size, idim, jdim)
+    real(DOUBLE_KIND), dimension(1:,1:),     intent(in)    :: array_in  !< The source array for the field; its size
+                                                           !! must match the size of the data being copied
+                                                           !! unless idim and jdim are supplied.
+    integer,                    intent(in)    :: bc_index  !< The index of the boundary condition
+                                                           !! that is being copied
+    integer,                    intent(in)    :: field_index !< The index of the field in the
+                                                           !! boundary condition that is being copied
+    integer,                    intent(in)    :: k_out     !< The k-index to set
+    type(coupler_3d_bc_type),   intent(inout) :: var       !< BC_type structure with the data to be set
+    real(DOUBLE_KIND),             optional, intent(in)    :: scale_factor !< A scaling factor for the data that is being added
+    integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default
+    integer, dimension(4), optional, intent(in) :: idim    !< The data and computational domain extents of
+                                                           !! the first dimension of the output array
+                                                           !! in a non-decreasing list
+    integer, dimension(4), optional, intent(in) :: jdim    !< The data and computational domain extents of
+                                                           !! the second dimension of the output array
+                                                           !! in a non-decreasing list
+
+    character(len=*), parameter :: error_header =&
+        & '==>Error from coupler_types_mod (CT_set_data_3d_2d_r8):'
+    character(len=400)      :: error_msg
+
+    real(DOUBLE_KIND) :: scale
+    integer :: i, j, halo, i_off, j_off
+
+    if (bc_index <= 0) return
+
+    halo = 0
+    if (present(halo_size)) halo = halo_size
+    scale = 1.0
+    if (present(scale_factor)) scale = scale_factor
+
+    if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
+        & call mpp_error(FATAL, trim(error_header)//" Excessive i-direction halo size for the input structure.")
+    if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
+        & call mpp_error(FATAL, trim(error_header)//" Excessive j-direction halo size for the input structure.")
+
+    if (bc_index > var%num_bcs)&
+        & call mpp_error(FATAL, trim(error_header)//" bc_index exceeds var%num_bcs.")
+    if (field_index > var%bc(bc_index)%num_fields)&
+        & call mpp_error(FATAL, trim(error_header)//" field_index exceeds num_fields for" //&
+        & trim(var%bc(bc_index)%name) )
+
+    ! Do error checking on the i-dimension and determine the array offsets.
+    if (present(idim)) then
+      if ((idim(1) > idim(2)) .or. (idim(3) > idim(4))) then
+        write (error_msg, *) trim(error_header), ' Disordered i-dimension index bound list ', idim
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if (size(array_in,1) /= (1+idim(4)-idim(1))) then
+        write (error_msg, *) trim(error_header), ' The declared i-dimension size of ',&
+            & (1+idim(4)-idim(1)), ' does not match the actual size of ', size(array_in,1)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if ((var%iec-var%isc) /= (idim(3)-idim(2)))&
+          & call mpp_error(FATAL, trim(error_header)//" There is an i-direction computational domain size mismatch.")
+      if ((idim(2)-idim(1) < halo) .or. (idim(4)-idim(3) < halo))&
+          & call mpp_error(FATAL, trim(error_header)//" Excessive i-direction halo size for the output array.")
+      if (size(array_in,1) < 2*halo + 1 + var%iec - var%isc) then
+        write (error_msg, *) trim(error_header), ' The target array with i-dimension size ',&
+            & (1+idim(4)-idim(1)), ' is too small to match the data of size ',&
+            & (2*halo + 1 + var%iec - var%isc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+
+      i_off = (1-idim(1)) + (idim(2)-var%isc)
+    else
+      if (size(array_in,1) < 2*halo + 1 + var%iec - var%isc) then
+        write (error_msg, *) trim(error_header), ' The target array with i-dimension size ',&
+            & size(array_in,1), ' does not match the data of size ',&
+            & (2*halo + 1 + var%iec - var%isc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      i_off = 1 - (var%isc-halo)
+    endif
+
+    ! Do error checking on the j-dimension and determine the array offsets.
+    if (present(jdim)) then
+      if ((jdim(1) > jdim(2)) .or. (jdim(3) > jdim(4))) then
+        write (error_msg, *) trim(error_header), ' Disordered j-dimension index bound list ', jdim
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if (size(array_in,2) /= (1+jdim(4)-jdim(1))) then
+        write (error_msg, *) trim(error_header), ' The declared j-dimension size of ',&
+            & (1+jdim(4)-jdim(1)), ' does not match the actual size of ', size(array_in,2)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if ((var%jec-var%jsc) /= (jdim(3)-jdim(2)))&
+          & call mpp_error(FATAL, trim(error_header)//" There is an j-direction computational domain size mismatch.")
+      if ((jdim(2)-jdim(1) < halo) .or. (jdim(4)-jdim(3) < halo))&
+          & call mpp_error(FATAL, trim(error_header)//" Excessive j-direction halo size for the output array.")
+      if (size(array_in,2) < 2*halo + 1 + var%jec - var%jsc) then
+        write (error_msg, *) trim(error_header), ' The target array with j-dimension size ',&
+            & (1+jdim(4)-jdim(1)), ' is too small to match the data of size ',&
+            & (2*halo + 1 + var%jec - var%jsc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+
+      j_off = (1-jdim(1)) + (jdim(2)-var%jsc)
+    else
+      if (size(array_in,2) < 2*halo + 1 + var%jec - var%jsc) then
+        write (error_msg, *) trim(error_header), ' The target array with j-dimension size ',&
+            & size(array_in,2), ' does not match the data of size ',&
+            & (2*halo + 1 + var%jec - var%jsc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      j_off = 1 - (var%jsc-halo)
+    endif
+
+    if ((k_out > var%ke) .or. (k_out < var%ks)) then
+      write (error_msg, *) trim(error_header), ' The k-index of ', k_out,&
+          & ' is outside of the valid range of ', var%ks, ' to ', var%ke
+      call mpp_error(FATAL, trim(error_msg))
+    endif
+
+    do j=var%jsc-halo,var%jec+halo
+      do i=var%isc-halo,var%iec+halo
+        var%bc(bc_index)%field(field_index)%values_8(i,j,k_out) = scale * array_in(i+i_off,j+j_off)
+      enddo
+    enddo
+  end subroutine CT_set_data_2d_3d_r8
 
   !> @brief Set a single 3d field in a coupler_3d_bc_type
   !!
@@ -2873,9 +4255,9 @@ contains
   !! @throw FATAL, "The target array with i-dimension size 'n' is too small to match the data of size 'd'"
   !! @throw FATAL, "The target array with j-dimension size 'n' is too small to match the data of size 'd'"
   !! @throw FATAL, "The target array with K-dimension size 'n' is too small to match the data of size 'd'"
-  subroutine CT_set_data_3d(array_in, bc_index, field_index, var,&
+  subroutine CT_set_data_3d_r4(array_in, bc_index, field_index, var,&
       & scale_factor, halo_size, idim, jdim)
-    real, dimension(1:,1:,1:),  intent(in)    :: array_in  !< The source array for the field; its size
+    real(FLOAT_KIND), dimension(1:,1:,1:),  intent(in)    :: array_in  !< The source array for the field; its size
                                                            !! must match the size of the data being copied
                                                            !! unless idim and jdim are supplied.
     integer,                    intent(in)    :: bc_index  !< The index of the boundary condition
@@ -2883,7 +4265,7 @@ contains
     integer,                    intent(in)    :: field_index !< The index of the field in the
                                                            !! boundary condition that is being copied
     type(coupler_3d_bc_type),   intent(inout) :: var       !< BC_type structure with the data to be set
-    real,             optional, intent(in)    :: scale_factor !< A scaling factor for the data that is being added
+    real(FLOAT_KIND),             optional, intent(in)    :: scale_factor !< A scaling factor for the data that is being added
     integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default
     integer, dimension(4), optional, intent(in) :: idim    !< The data and computational domain extents of
                                                            !! the first dimension of the output array
@@ -2893,10 +4275,10 @@ contains
                                                            !! in a non-decreasing list
 
     character(len=*), parameter :: error_header =&
-        & '==>Error from coupler_types_mod (CT_set_data_3d):'
+        & '==>Error from coupler_types_mod (CT_set_data_3d_r4):'
     character(len=400) :: error_msg
 
-    real :: scale
+    real(FLOAT_KIND) :: scale
     integer :: i, j, k, halo, i_off, j_off, k_off
 
     if (bc_index <= 0) return
@@ -2994,12 +4376,138 @@ contains
     do k=var%ks,var%ke
       do j=var%jsc-halo,var%jec+halo
         do i=var%isc-halo,var%iec+halo
-          var%bc(bc_index)%field(field_index)%values(i,j,k) = scale * array_in(i+i_off,j+j_off,k+k_off)
+          var%bc(bc_index)%field(field_index)%values_4(i,j,k) = scale * array_in(i+i_off,j+j_off,k+k_off)
         enddo
       enddo
     enddo
-  end subroutine CT_set_data_3d
+  end subroutine CT_set_data_3d_r4
 
+  subroutine CT_set_data_3d_r8(array_in, bc_index, field_index, var,&
+      & scale_factor, halo_size, idim, jdim)
+    real(DOUBLE_KIND), dimension(1:,1:,1:),  intent(in)    :: array_in  !< The source array for the field; its size
+                                                           !! must match the size of the data being copied
+                                                           !! unless idim and jdim are supplied.
+    integer,                    intent(in)    :: bc_index  !< The index of the boundary condition
+                                                           !! that is being copied
+    integer,                    intent(in)    :: field_index !< The index of the field in the
+                                                           !! boundary condition that is being copied
+    type(coupler_3d_bc_type),   intent(inout) :: var       !< BC_type structure with the data to be set
+    real(DOUBLE_KIND),             optional, intent(in)    :: scale_factor !< A scaling factor for the data that is being added
+    integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default
+    integer, dimension(4), optional, intent(in) :: idim    !< The data and computational domain extents of
+                                                           !! the first dimension of the output array
+                                                           !! in a non-decreasing list
+    integer, dimension(4), optional, intent(in) :: jdim    !< The data and computational domain extents of
+                                                           !! the second dimension of the output array
+                                                           !! in a non-decreasing list
+
+    character(len=*), parameter :: error_header =&
+        & '==>Error from coupler_types_mod (CT_set_data_3d_r8):'
+    character(len=400) :: error_msg
+
+    real(DOUBLE_KIND) :: scale
+    integer :: i, j, k, halo, i_off, j_off, k_off
+
+    if (bc_index <= 0) return
+
+    halo = 0
+    if (present(halo_size)) halo = halo_size
+    scale = 1.0
+    if (present(scale_factor)) scale = scale_factor
+
+    if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
+        & call mpp_error(FATAL, trim(error_header)//" Excessive i-direction halo size for the input structure.")
+    if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
+        & call mpp_error(FATAL, trim(error_header)//" Excessive j-direction halo size for the input structure.")
+
+    if (bc_index > var%num_bcs)&
+        & call mpp_error(FATAL, trim(error_header)//" bc_index exceeds var%num_bcs.")
+    if (field_index > var%bc(bc_index)%num_fields)&
+        & call mpp_error(FATAL, trim(error_header)//" field_index exceeds num_fields for" //&
+        & trim(var%bc(bc_index)%name) )
+
+    ! Do error checking on the i-dimension and determine the array offsets.
+    if (present(idim)) then
+      if ((idim(1) > idim(2)) .or. (idim(3) > idim(4))) then
+        write (error_msg, *) trim(error_header), ' Disordered i-dimension index bound list ', idim
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if (size(array_in,1) /= (1+idim(4)-idim(1))) then
+        write (error_msg, *) trim(error_header), ' The declared i-dimension size of ',&
+            & (1+idim(4)-idim(1)), ' does not match the actual size of ', size(array_in,1)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if ((var%iec-var%isc) /= (idim(3)-idim(2)))&
+          & call mpp_error(FATAL, trim(error_header)//" There is an i-direction computational domain size mismatch.")
+      if ((idim(2)-idim(1) < halo) .or. (idim(4)-idim(3) < halo))&
+          & call mpp_error(FATAL, trim(error_header)//" Excessive i-direction halo size for the output array.")
+      if (size(array_in,1) < 2*halo + 1 + var%iec - var%isc) then
+        write (error_msg, *) trim(error_header), ' The target array with i-dimension size ',&
+            & (1+idim(4)-idim(1)), ' is too small to match the data of size ',&
+            & (2*halo + 1 + var%iec - var%isc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+
+      i_off = (1-idim(1)) + (idim(2)-var%isc)
+    else
+      if (size(array_in,1) < 2*halo + 1 + var%iec - var%isc) then
+        write (error_msg, *) trim(error_header), ' The target array with i-dimension size ',&
+            & size(array_in,1), ' does not match the data of size ',&
+            & (2*halo + 1 + var%iec - var%isc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      i_off = 1 - (var%isc-halo)
+    endif
+
+    ! Do error checking on the j-dimension and determine the array offsets.
+    if (present(jdim)) then
+      if ((jdim(1) > jdim(2)) .or. (jdim(3) > jdim(4))) then
+        write (error_msg, *) trim(error_header), ' Disordered j-dimension index bound list ', jdim
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if (size(array_in,2) /= (1+jdim(4)-jdim(1))) then
+        write (error_msg, *) trim(error_header), ' The declared j-dimension size of ',&
+            & (1+jdim(4)-jdim(1)), ' does not match the actual size of ', size(array_in,2)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      if ((var%jec-var%jsc) /= (jdim(3)-jdim(2)))&
+          & call mpp_error(FATAL, trim(error_header)//" There is an j-direction computational domain size mismatch.")
+      if ((jdim(2)-jdim(1) < halo) .or. (jdim(4)-jdim(3) < halo))&
+          & call mpp_error(FATAL, trim(error_header)//" Excessive j-direction halo size for the output array.")
+      if (size(array_in,2) < 2*halo + 1 + var%jec - var%jsc) then
+        write (error_msg, *) trim(error_header), ' The target array with j-dimension size ',&
+            & (1+jdim(4)-jdim(1)), ' is too small to match the data of size ',&
+            & (2*halo + 1 + var%jec - var%jsc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+
+      j_off = (1-jdim(1)) + (jdim(2)-var%jsc)
+    else
+      if (size(array_in,2) < 2*halo + 1 + var%jec - var%jsc) then
+        write (error_msg, *) trim(error_header), ' The target array with j-dimension size ',&
+            & size(array_in,2), ' does not match the data of size ',&
+            & (2*halo + 1 + var%jec - var%jsc)
+        call mpp_error(FATAL, trim(error_msg))
+      endif
+      j_off = 1 - (var%jsc-halo)
+    endif
+
+    if (size(array_in,3) /= 1 + var%ke - var%ks) then
+      write (error_msg, *) trim(error_header), ' The target array with k-dimension size ',&
+          & size(array_in,3), ' does not match the data of size ',&
+          & (1 + var%ke - var%ks)
+      call mpp_error(FATAL, trim(error_msg))
+    endif
+    k_off = 1 - var%ks
+
+    do k=var%ks,var%ke
+      do j=var%jsc-halo,var%jec+halo
+        do i=var%isc-halo,var%iec+halo
+          var%bc(bc_index)%field(field_index)%values_8(i,j,k) = scale * array_in(i+i_off,j+j_off,k+k_off)
+        enddo
+      enddo
+    enddo
+  end subroutine CT_set_data_3d_r8
 
   !! @brief Register the diagnostics of a coupler_2d_bc_type
   !!
@@ -3057,7 +4565,7 @@ contains
 
 
   !> @brief Write out all diagnostics of elements of a coupler_2d_bc_type
-  subroutine CT_send_data_2d(var, Time)
+  subroutine CT_send_data_2d_r4(var, Time)
     type(coupler_2d_bc_type), intent(in) :: var  !< BC_type structure with the diagnostics to write
     type(time_type),          intent(in) :: time !< The current model time
 
@@ -3067,14 +4575,30 @@ contains
     do n = 1, var%num_bcs
       do m = 1, var%bc(n)%num_fields
         if (var%bc(n)%field(m)%id_diag > 0) then
-          used = send_data(var%bc(n)%field(m)%id_diag, var%bc(n)%field(m)%values, Time)
+          used = send_data(var%bc(n)%field(m)%id_diag, var%bc(n)%field(m)%values_4, Time)
         endif
       enddo
     enddo
-  end subroutine CT_send_data_2d
+  end subroutine CT_send_data_2d_r4
+
+  subroutine CT_send_data_2d_r8(var, Time)
+    type(coupler_2d_bc_type), intent(in) :: var  !< BC_type structure with the diagnostics to write
+    type(time_type),          intent(in) :: time !< The current model time
+
+    integer :: m, n
+    logical :: used
+
+    do n = 1, var%num_bcs
+      do m = 1, var%bc(n)%num_fields
+        if (var%bc(n)%field(m)%id_diag > 0) then
+          used = send_data(var%bc(n)%field(m)%id_diag, var%bc(n)%field(m)%values_8, Time)
+        endif
+      enddo
+    enddo
+  end subroutine CT_send_data_2d_r8
 
   !> @brief Write out all diagnostics of elements of a coupler_3d_bc_type
-  subroutine CT_send_data_3d(var, Time)
+  subroutine CT_send_data_3d_r4(var, Time)
     type(coupler_3d_bc_type), intent(in) :: var  !< BC_type structure with the diagnostics to write
     type(time_type),          intent(in) :: time !< The current model time
 
@@ -3084,16 +4608,32 @@ contains
     do n = 1, var%num_bcs
       do m = 1, var%bc(n)%num_fields
         if (var%bc(n)%field(m)%id_diag > 0) then
-          used = send_data(var%bc(n)%field(m)%id_diag, var%bc(n)%field(m)%values, Time)
+          used = send_data(var%bc(n)%field(m)%id_diag, var%bc(n)%field(m)%values_4, Time)
         endif
       enddo
     enddo
-  end subroutine CT_send_data_3d
+  end subroutine CT_send_data_3d_r4
+
+  subroutine CT_send_data_3d_r8(var, Time)
+    type(coupler_3d_bc_type), intent(in) :: var  !< BC_type structure with the diagnostics to write
+    type(time_type),          intent(in) :: time !< The current model time
+
+    integer :: m, n
+    logical :: used
+
+    do n = 1, var%num_bcs
+      do m = 1, var%bc(n)%num_fields
+        if (var%bc(n)%field(m)%id_diag > 0) then
+          used = send_data(var%bc(n)%field(m)%id_diag, var%bc(n)%field(m)%values_8, Time)
+        endif
+      enddo
+    enddo
+  end subroutine CT_send_data_3d_r8
 
   !! @brief Register the fields in a coupler_2d_bc_type to be saved in restart files
   !! This subroutine registers the fields in a coupler_2d_bc_type to be saved in restart files
   !! specified in the field table.
-  subroutine CT_register_restarts_2d(var, bc_rest_files, num_rest_files, mpp_domain, to_read, ocean_restart, directory)
+  subroutine CT_register_restarts_2d_r4(var, bc_rest_files, num_rest_files, mpp_domain, to_read, ocean_restart, directory)
     type(coupler_2d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
     type(FmsNetcdfDomainFile_t),  dimension(:), pointer  :: bc_rest_files !< Structures describing the restart files
     integer,                  intent(out) :: num_rest_files !< The number of restart files to use
@@ -3180,7 +4720,7 @@ contains
             endif !< to_read
 
             call register_restart_field(bc_rest_files(f),&
-            & var%bc(n)%field(m)%name, var%bc(n)%field(m)%values, dim_names, &
+            & var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_4, dim_names, &
             & is_optional=var%bc(n)%field(m)%may_init )
 
             deallocate(dim_names)
@@ -3188,7 +4728,104 @@ contains
       enddo !< num_fields
     enddo !< num_bcs
 
-  end subroutine CT_register_restarts_2d
+  end subroutine CT_register_restarts_2d_r4
+
+  subroutine CT_register_restarts_2d_r8(var, bc_rest_files, num_rest_files, mpp_domain, to_read, ocean_restart, directory)
+    type(coupler_2d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
+    type(FmsNetcdfDomainFile_t),  dimension(:), pointer  :: bc_rest_files !< Structures describing the restart files
+    integer,                  intent(out) :: num_rest_files !< The number of restart files to use
+    type(domain2D),           intent(in)  :: mpp_domain     !< The FMS domain to use for this registration call
+    logical,                  intent(in)  :: to_read        !< Flag indicating if reading/writing a file
+    logical,         optional,intent(in)  :: ocean_restart  !< If true, use the ocean restart file name.
+    character(len=*),optional,intent(in)  :: directory      !< Directory where to open the file
+
+    character(len=80), dimension(max(1,var%num_bcs)) :: rest_file_names
+    character(len=80) :: file_nm
+    logical :: ocn_rest
+    integer :: f, n, m
+
+    character(len=20), allocatable, dimension(:)             :: dim_names !< Array of dimension names
+    character(len=20)                          :: io_type   !< flag indicating io type: "read" "overwrite"
+    logical, dimension(max(1,var%num_bcs))     :: file_is_open !< flag indicating if file is open
+    character(len=20)                          :: dir       !< Directory where to open the file
+
+    ocn_rest = .true.
+    if (present(ocean_restart)) ocn_rest = ocean_restart
+
+    if (present(directory)) dir = trim(directory)
+
+    if (to_read) then
+        io_type = "read"
+        if (.not. present(directory)) dir = "INPUT/"
+    else
+        io_type = "overwrite"
+        if (.not. present(directory)) dir = "RESTART/"
+    endif
+
+    ! Determine the number and names of the restart files
+    num_rest_files = 0
+    do n = 1, var%num_bcs
+      if (var%bc(n)%num_fields <= 0) cycle
+      file_nm = trim(var%bc(n)%ice_restart_file)
+      if (ocn_rest) file_nm = trim(var%bc(n)%ocean_restart_file)
+      do f = 1, num_rest_files
+        if (trim(file_nm) == trim(rest_file_names(f))) exit
+      enddo
+      if (f>num_rest_files) then
+        num_rest_files = num_rest_files + 1
+        rest_file_names(f) = trim(file_nm)
+      endif
+    enddo
+
+    if (num_rest_files == 0) return
+
+    allocate(bc_rest_files(num_rest_files))
+
+    !< Open the files
+    do n = 1, num_rest_files
+        file_is_open(n) = open_file(bc_rest_files(n), trim(dir)//rest_file_names(n), io_type, mpp_domain, is_restart=.true.)
+        if (file_is_open(n)) then
+             call register_axis_wrapper(bc_rest_files(n), to_read=to_read)
+        endif
+    enddo
+
+    ! Register the fields with the restart files
+    do n = 1, var%num_bcs
+      if (var%bc(n)%num_fields <= 0) cycle
+
+      file_nm = trim(var%bc(n)%ice_restart_file)
+      if (ocn_rest) file_nm = trim(var%bc(n)%ocean_restart_file)
+      do f = 1, num_rest_files
+        if (trim(file_nm) == trim(rest_file_names(f))) exit
+      enddo
+
+      var%bc(n)%fms2_io_rest_type => bc_rest_files(f)
+
+      do m = 1, var%bc(n)%num_fields
+         if (file_is_open(f)) then
+            if( to_read .and. variable_exists(bc_rest_files(f), var%bc(n)%field(m)%name)) then
+                !< If reading get the dimension names from the file
+                allocate(dim_names(get_variable_num_dimensions(bc_rest_files(f), var%bc(n)%field(m)%name)))
+                call get_variable_dimension_names(bc_rest_files(f), &
+                & var%bc(n)%field(m)%name, dim_names)
+            else
+                !< If writing use dummy dimension names
+                allocate(dim_names(3))
+                dim_names(1) = "xaxis_1"
+                dim_names(2) = "yaxis_1"
+                dim_names(3) = "Time"
+            endif !< to_read
+
+            call register_restart_field(bc_rest_files(f),&
+            & var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_8, dim_names, &
+            & is_optional=var%bc(n)%field(m)%may_init )
+
+            deallocate(dim_names)
+         endif !< If file_is_open
+      enddo !< num_fields
+    enddo !< num_bcs
+
+  end subroutine CT_register_restarts_2d_r8
 
   !< If reading a restart, register the dimensions that are in the file
   subroutine register_axis_wrapper_read(fileobj)
@@ -3294,7 +4931,7 @@ contains
   !!
   !! This subroutine registers the fields in a coupler_2d_bc_type to be saved in restart files
   !! specified in the field table.
-  subroutine mpp_io_CT_register_restarts_2d(var, bc_rest_files, num_rest_files, mpp_domain, ocean_restart)
+  subroutine mpp_io_CT_register_restarts_2d_r4(var, bc_rest_files, num_rest_files, mpp_domain, ocean_restart)
     type(coupler_2d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
     type(restart_file_type),  dimension(:), pointer :: bc_rest_files !< Structures describing the restart files
     integer,                  intent(out) :: num_rest_files !< The number of restart files to use
@@ -3340,17 +4977,69 @@ contains
       var%bc(n)%rest_type => bc_rest_files(f)
       do m = 1, var%bc(n)%num_fields
         var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(bc_rest_files(f),&
-            & rest_file_names(f), var%bc(n)%field(m)%name, var%bc(n)%field(m)%values,&
+            & rest_file_names(f), var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_4,&
             & mpp_domain, mandatory=.not.var%bc(n)%field(m)%may_init )
       enddo
     enddo
-  end subroutine mpp_io_CT_register_restarts_2d
+  end subroutine mpp_io_CT_register_restarts_2d_r4
+
+  subroutine mpp_io_CT_register_restarts_2d_r8(var, bc_rest_files, num_rest_files, mpp_domain, ocean_restart)
+    type(coupler_2d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
+    type(restart_file_type),  dimension(:), pointer :: bc_rest_files !< Structures describing the restart files
+    integer,                  intent(out) :: num_rest_files !< The number of restart files to use
+    type(domain2D),           intent(in)  :: mpp_domain     !< The FMS domain to use for this registration call
+    logical,        optional, intent(in)  :: ocean_restart  !< If true, use the ocean restart file name.
+
+    character(len=80), dimension(max(1,var%num_bcs)) :: rest_file_names
+    character(len=80) :: file_nm
+    logical :: ocn_rest
+    integer :: f, n, m
+
+    ocn_rest = .true.
+    if (present(ocean_restart)) ocn_rest = ocean_restart
+
+    ! Determine the number and names of the restart files
+    num_rest_files = 0
+    do n = 1, var%num_bcs
+      if (var%bc(n)%num_fields <= 0) cycle
+      file_nm = trim(var%bc(n)%ice_restart_file)
+      if (ocn_rest) file_nm = trim(var%bc(n)%ocean_restart_file)
+      do f = 1, num_rest_files
+        if (trim(file_nm) == trim(rest_file_names(f))) exit
+      enddo
+      if (f>num_rest_files) then
+        num_rest_files = num_rest_files + 1
+        rest_file_names(f) = trim(file_nm)
+      endif
+    enddo
+
+    if (num_rest_files == 0) return
+
+    ! Register the fields with the restart files
+    allocate(bc_rest_files(num_rest_files))
+    do n = 1, var%num_bcs
+      if (var%bc(n)%num_fields <= 0) cycle
+
+      file_nm = trim(var%bc(n)%ice_restart_file)
+      if (ocn_rest) file_nm = trim(var%bc(n)%ocean_restart_file)
+      do f = 1, num_rest_files
+        if (trim(file_nm) == trim(rest_file_names(f))) exit
+      enddo
+
+      var%bc(n)%rest_type => bc_rest_files(f)
+      do m = 1, var%bc(n)%num_fields
+        var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(bc_rest_files(f),&
+            & rest_file_names(f), var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_8,&
+            & mpp_domain, mandatory=.not.var%bc(n)%field(m)%may_init )
+      enddo
+    enddo
+  end subroutine mpp_io_CT_register_restarts_2d_r8
 
   !! @brief Register the fields in a coupler_2d_bc_type to be saved to restart files
   !!
   !! This subroutine  registers the  fields in  a coupler_2d_bc_type  to be  saved in  the specified
   !! restart file.
-  subroutine mpp_io_CT_register_restarts_to_file_2d(var, file_name, rest_file, mpp_domain, varname_prefix)
+  subroutine mpp_io_CT_register_restarts_to_file_2d_r4(var, file_name, rest_file, mpp_domain, varname_prefix)
     type(coupler_2d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
     character(len=*),         intent(in)    :: file_name !< The name of the restart file
     type(restart_file_type),  pointer       :: rest_file !< A (possibly associated) structure describing the restart file
@@ -3373,16 +5062,45 @@ contains
         var_name = trim(var%bc(n)%field(m)%name)
         if (present(varname_prefix)) var_name = trim(varname_prefix)//trim(var_name)
         var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(rest_file,&
-            & file_name, var_name, var%bc(n)%field(m)%values,&
+            & file_name, var_name, var%bc(n)%field(m)%values_4,&
             & mpp_domain, mandatory=.not.var%bc(n)%field(m)%may_init )
       enddo
     enddo
-  end subroutine mpp_io_CT_register_restarts_to_file_2d
+  end subroutine mpp_io_CT_register_restarts_to_file_2d_r4
+
+  subroutine mpp_io_CT_register_restarts_to_file_2d_r8(var, file_name, rest_file, mpp_domain, varname_prefix)
+    type(coupler_2d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
+    character(len=*),         intent(in)    :: file_name !< The name of the restart file
+    type(restart_file_type),  pointer       :: rest_file !< A (possibly associated) structure describing the restart file
+    type(domain2D),           intent(in)    :: mpp_domain !< The FMS domain to use for this registration call
+    character(len=*), optional, intent(in)  :: varname_prefix !< A prefix for the variable name
+                                                         !! in the restart file, intended to allow
+                                                         !! multiple BC_type variables to use the
+                                                         !! same restart files.
+
+    character(len=128) :: var_name
+    integer :: n, m
+
+    ! Register the fields with the restart file
+    if (.not.associated(rest_file)) allocate(rest_file)
+    do n = 1, var%num_bcs
+      if (var%bc(n)%num_fields <= 0) cycle
+
+      var%bc(n)%rest_type => rest_file
+      do m = 1, var%bc(n)%num_fields
+        var_name = trim(var%bc(n)%field(m)%name)
+        if (present(varname_prefix)) var_name = trim(varname_prefix)//trim(var_name)
+        var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(rest_file,&
+            & file_name, var_name, var%bc(n)%field(m)%values_8,&
+            & mpp_domain, mandatory=.not.var%bc(n)%field(m)%may_init )
+      enddo
+    enddo
+  end subroutine mpp_io_CT_register_restarts_to_file_2d_r8
 
   !! @brief Register the fields in a coupler_3d_bc_type to be saved in restart files
   !! This subroutine registers the fields in a coupler_2d_bc_type to be saved in restart files
   !! specified in the field table.
-  subroutine CT_register_restarts_3d(var, bc_rest_files, num_rest_files, mpp_domain, to_read, ocean_restart, directory)
+  subroutine CT_register_restarts_3d_r4(var, bc_rest_files, num_rest_files, mpp_domain, to_read, ocean_restart, directory)
     type(coupler_3d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
     type(FmsNetcdfDomainFile_t),  dimension(:), pointer  :: bc_rest_files !< Structures describing the restart files
     integer,                  intent(out) :: num_rest_files !< The number of restart files to use
@@ -3477,20 +5195,124 @@ contains
             endif !< to_read
 
             call register_restart_field(bc_rest_files(f),&
-                 & var%bc(n)%field(m)%name, var%bc(n)%field(m)%values, dim_names, &
+                 & var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_4, dim_names, &
                  & is_optional=var%bc(n)%field(m)%may_init )
             deallocate(dim_names)
          endif !< If file_is_open
       enddo !< num_fields
     enddo !< num_bcs
 
-  end subroutine CT_register_restarts_3d
+  end subroutine CT_register_restarts_3d_r4
+
+  subroutine CT_register_restarts_3d_r8(var, bc_rest_files, num_rest_files, mpp_domain, to_read, ocean_restart, directory)
+    type(coupler_3d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
+    type(FmsNetcdfDomainFile_t),  dimension(:), pointer  :: bc_rest_files !< Structures describing the restart files
+    integer,                  intent(out) :: num_rest_files !< The number of restart files to use
+    type(domain2D),           intent(in)  :: mpp_domain     !< The FMS domain to use for this registration call
+    logical,                  intent(in)  :: to_read        !< Flag indicating if reading/writing a file
+    logical,         optional,intent(in)  :: ocean_restart  !< If true, use the ocean restart file name.
+    character(len=*),optional,intent(in)  :: directory      !< Directory where to open the file
+
+    character(len=80), dimension(max(1,var%num_bcs)) :: rest_file_names
+    character(len=80) :: file_nm
+    logical :: ocn_rest
+    integer :: f, n, m
+
+    character(len=20), allocatable, dimension(:) :: dim_names !< Array of dimension names
+    character(len=20)                          :: io_type   !< flag indicating io type: "read" "overwrite"
+    logical, dimension(max(1,var%num_bcs))     :: file_is_open !< Flag indicating if file is open
+    character(len=20)                          :: dir       !< Directory where to open the file
+    integer                                    :: nz        !< Length of the z direction of each file
+
+    ocn_rest = .true.
+    if (present(ocean_restart)) ocn_rest = ocean_restart
+
+    if (present(directory)) dir = trim(directory)
+
+    if (to_read) then
+        io_type = "read"
+        if (.not. present(directory)) dir = "INPUT/"
+    else
+        io_type = "overwrite"
+        if (.not. present(directory)) dir = "RESTART/"
+    endif
+
+    nz = var%ke - var%ks + 1 !< NOTE: This assumes that the z dimension is the same for every variable
+    ! Determine the number and names of the restart files
+    num_rest_files = 0
+    do n = 1, var%num_bcs
+      if (var%bc(n)%num_fields <= 0) cycle
+      file_nm = trim(var%bc(n)%ice_restart_file)
+      if (ocn_rest) file_nm = trim(var%bc(n)%ocean_restart_file)
+      do f = 1, num_rest_files
+        if (trim(file_nm) == trim(rest_file_names(f))) exit
+      enddo
+      if (f>num_rest_files) then
+        num_rest_files = num_rest_files + 1
+        rest_file_names(f) = trim(file_nm)
+      endif
+    enddo
+
+    if (num_rest_files == 0) return
+
+    allocate(bc_rest_files(num_rest_files))
+
+    !< Open the files
+    do n = 1, num_rest_files
+        file_is_open(n) = open_file(bc_rest_files(n), trim(dir)//rest_file_names(n), io_type, mpp_domain, is_restart=.true.)
+        if (file_is_open(n)) then
+
+             if (to_read) then
+                call register_axis_wrapper(bc_rest_files(n), to_read=to_read)
+             else
+                call register_axis_wrapper(bc_rest_files(n), to_read=to_read, nz=nz)
+             endif
+        endif
+    enddo
+
+    ! Register the fields with the restart files
+    do n = 1, var%num_bcs
+      if (var%bc(n)%num_fields <= 0) cycle
+
+      file_nm = trim(var%bc(n)%ice_restart_file)
+      if (ocn_rest) file_nm = trim(var%bc(n)%ocean_restart_file)
+      do f = 1, num_rest_files
+        if (trim(file_nm) == trim(rest_file_names(f))) exit
+      enddo
+
+      var%bc(n)%fms2_io_rest_type => bc_rest_files(f)
+
+      do m = 1, var%bc(n)%num_fields
+         if (file_is_open(f)) then
+            if( to_read .and. variable_exists(bc_rest_files(f), var%bc(n)%field(m)%name)) then
+                !< If reading get the dimension names from the file
+                allocate(dim_names(get_variable_num_dimensions(bc_rest_files(f), var%bc(n)%field(m)%name)))
+                call get_variable_dimension_names(bc_rest_files(f), &
+                & var%bc(n)%field(m)%name, dim_names)
+            else
+                !< If writing use dummy dimension names
+                allocate(dim_names(4))
+                dim_names(1) = "xaxis_1"
+                dim_names(2) = "yaxis_1"
+                dim_names(3) = "zaxis_1"
+                dim_names(4) = "Time"
+            endif !< to_read
+
+            call register_restart_field(bc_rest_files(f),&
+                 & var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_8, dim_names, &
+                 & is_optional=var%bc(n)%field(m)%may_init )
+            deallocate(dim_names)
+         endif !< If file_is_open
+      enddo !< num_fields
+    enddo !< num_bcs
+
+  end subroutine CT_register_restarts_3d_r8
 
   !! @brief Register the fields in a coupler_3d_bc_type to be saved to restart files
   !!
   !! This subroutine registers the fields in a coupler_3d_bc_type to be saved in restart files
   !! specified in the field table.
-  subroutine mpp_io_CT_register_restarts_3d(var, bc_rest_files, num_rest_files, mpp_domain, ocean_restart)
+  subroutine mpp_io_CT_register_restarts_3d_r4(var, bc_rest_files, num_rest_files, mpp_domain, ocean_restart)
     type(coupler_3d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
     type(restart_file_type),  dimension(:), pointer :: bc_rest_files !< Structures describing the restart files
     integer,                  intent(out)   :: num_rest_files !< The number of restart files to use
@@ -3535,16 +5357,67 @@ contains
       var%bc(n)%rest_type => bc_rest_files(f)
       do m = 1, var%bc(n)%num_fields
         var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(bc_rest_files(f),&
-            & rest_file_names(f), var%bc(n)%field(m)%name, var%bc(n)%field(m)%values,&
+            & rest_file_names(f), var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_4,&
             & mpp_domain, mandatory=.not.var%bc(n)%field(m)%may_init )
       enddo
     enddo
-  end subroutine mpp_io_CT_register_restarts_3d
+  end subroutine mpp_io_CT_register_restarts_3d_r4
+
+  subroutine mpp_io_CT_register_restarts_3d_r8(var, bc_rest_files, num_rest_files, mpp_domain, ocean_restart)
+    type(coupler_3d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
+    type(restart_file_type),  dimension(:), pointer :: bc_rest_files !< Structures describing the restart files
+    integer,                  intent(out)   :: num_rest_files !< The number of restart files to use
+    type(domain2D),           intent(in)    :: mpp_domain     !< The FMS domain to use for this registration call
+    logical,        optional, intent(in)    :: ocean_restart  !< If true, use the ocean restart file name.
+
+    character(len=80), dimension(max(1,var%num_bcs)) :: rest_file_names
+    character(len=80) :: file_nm
+    logical :: ocn_rest
+    integer :: f, n, m, id_restart
+
+    ocn_rest = .true.
+    if (present(ocean_restart)) ocn_rest = ocean_restart
+
+    ! Determine the number and names of the restart files
+    num_rest_files = 0
+    do n = 1, var%num_bcs
+      if (var%bc(n)%num_fields <= 0) cycle
+      file_nm = trim(var%bc(n)%ice_restart_file)
+      if (ocn_rest) file_nm = trim(var%bc(n)%ocean_restart_file)
+      do f = 1, num_rest_files
+        if (trim(file_nm) == trim(rest_file_names(f))) exit
+      enddo
+      if (f>num_rest_files) then
+        num_rest_files = num_rest_files + 1
+        rest_file_names(f) = trim(file_nm)
+      endif
+    enddo
+
+    if (num_rest_files == 0) return
+
+    ! Register the fields with the restart files
+    allocate(bc_rest_files(num_rest_files))
+    do n = 1, var%num_bcs
+      if (var%bc(n)%num_fields <= 0) cycle
+      file_nm = trim(var%bc(n)%ice_restart_file)
+      if (ocn_rest) file_nm = trim(var%bc(n)%ocean_restart_file)
+      do f = 1, num_rest_files
+        if (trim(file_nm) == trim(rest_file_names(f))) exit
+      enddo
+
+      var%bc(n)%rest_type => bc_rest_files(f)
+      do m = 1, var%bc(n)%num_fields
+        var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(bc_rest_files(f),&
+            & rest_file_names(f), var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_8,&
+            & mpp_domain, mandatory=.not.var%bc(n)%field(m)%may_init )
+      enddo
+    enddo
+  end subroutine mpp_io_CT_register_restarts_3d_r8
 
   !> @brief Register the fields in a coupler_3d_bc_type to be saved to restart files
   !!
   !! Registers the fields in a coupler_3d_bc_type to be saved in the specified restart file.
-  subroutine mpp_io_CT_register_restarts_to_file_3d(var, file_name, rest_file, mpp_domain, varname_prefix)
+  subroutine mpp_io_CT_register_restarts_to_file_3d_r4(var, file_name, rest_file, mpp_domain, varname_prefix)
     type(coupler_3d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
     character(len=*),         intent(in)  :: file_name !< The name of the restart file
     type(restart_file_type),  pointer     :: rest_file !< A (possibly associated) structure describing the restart file
@@ -3567,11 +5440,40 @@ contains
         var_name = trim(var%bc(n)%field(m)%name)
         if (present(varname_prefix)) var_name = trim(varname_prefix)//trim(var_name)
         var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(rest_file,&
-            & file_name, var_name, var%bc(n)%field(m)%values,&
+            & file_name, var_name, var%bc(n)%field(m)%values_4,&
             & mpp_domain, mandatory=.not.var%bc(n)%field(m)%may_init )
       enddo
     enddo
-  end subroutine mpp_io_CT_register_restarts_to_file_3d
+  end subroutine mpp_io_CT_register_restarts_to_file_3d_r4
+
+  subroutine mpp_io_CT_register_restarts_to_file_3d_r8(var, file_name, rest_file, mpp_domain, varname_prefix)
+    type(coupler_3d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
+    character(len=*),         intent(in)  :: file_name !< The name of the restart file
+    type(restart_file_type),  pointer     :: rest_file !< A (possibly associated) structure describing the restart file
+    type(domain2D),           intent(in)  :: mpp_domain !< The FMS domain to use for this registration call
+    character(len=*), optional, intent(in)  :: varname_prefix !< A prefix for the variable name
+                                                    !! in the restart file, intended to allow
+                                                    !! multiple BC_type variables to use the
+                                                    !! same restart files.
+
+    character(len=128) :: var_name
+    integer :: n, m
+
+    ! Register the fields with the restart file
+    if (.not.associated(rest_file)) allocate(rest_file)
+    do n = 1, var%num_bcs
+      if (var%bc(n)%num_fields <= 0) cycle
+
+      var%bc(n)%rest_type => rest_file
+      do m = 1, var%bc(n)%num_fields
+        var_name = trim(var%bc(n)%field(m)%name)
+        if (present(varname_prefix)) var_name = trim(varname_prefix)//trim(var_name)
+        var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(rest_file,&
+            & file_name, var_name, var%bc(n)%field(m)%values_8,&
+            & mpp_domain, mandatory=.not.var%bc(n)%field(m)%may_init )
+      enddo
+    enddo
+  end subroutine mpp_io_CT_register_restarts_to_file_3d_r8
 
   subroutine CT_restore_state_2d(var, use_fms2_io, directory, all_or_nothing, all_required, test_by_field)
     type(coupler_2d_bc_type), intent(inout) :: var  !< BC_type structure to restore from restart files
@@ -3845,7 +5747,7 @@ contains
 
 
   !> @brief Potentially override the values in a coupler_2d_bc_type
-  subroutine CT_data_override_2d(gridname, var, Time)
+  subroutine CT_data_override_2d_r4(gridname, var, Time)
     character(len=3),         intent(in)    :: gridname !< 3-character long model grid ID
     type(coupler_2d_bc_type), intent(inout) :: var  !< BC_type structure to override
     type(time_type),          intent(in)    :: time !< The current model time
@@ -3854,13 +5756,27 @@ contains
 
     do n = 1, var%num_bcs
       do m = 1, var%bc(n)%num_fields
-        call data_override(gridname, var%bc(n)%field(m)%name, var%bc(n)%field(m)%values, Time)
+        call data_override(gridname, var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_4, Time)
       enddo
     enddo
-  end subroutine CT_data_override_2d
+  end subroutine CT_data_override_2d_r4
+
+  subroutine CT_data_override_2d_r8(gridname, var, Time)
+    character(len=3),         intent(in)    :: gridname !< 3-character long model grid ID
+    type(coupler_2d_bc_type), intent(inout) :: var  !< BC_type structure to override
+    type(time_type),          intent(in)    :: time !< The current model time
+
+    integer :: m, n
+
+    do n = 1, var%num_bcs
+      do m = 1, var%bc(n)%num_fields
+        call data_override(gridname, var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_8, Time)
+      enddo
+    enddo
+  end subroutine CT_data_override_2d_r8
 
   !> @brief Potentially override the values in a coupler_3d_bc_type
-  subroutine CT_data_override_3d(gridname, var, Time)
+  subroutine CT_data_override_3d_r4(gridname, var, Time)
     character(len=3),         intent(in)    :: gridname !< 3-character long model grid ID
     type(coupler_3d_bc_type), intent(inout) :: var  !< BC_type structure to override
     type(time_type),          intent(in)    :: time !< The current model time
@@ -3869,14 +5785,28 @@ contains
 
     do n = 1, var%num_bcs
       do m = 1, var%bc(n)%num_fields
-        call data_override(gridname, var%bc(n)%field(m)%name, var%bc(n)%field(m)%values, Time)
+        call data_override(gridname, var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_4, Time)
       enddo
     enddo
-  end subroutine CT_data_override_3d
+  end subroutine CT_data_override_3d_r4
+
+  subroutine CT_data_override_3d_r8(gridname, var, Time)
+    character(len=3),         intent(in)    :: gridname !< 3-character long model grid ID
+    type(coupler_3d_bc_type), intent(inout) :: var  !< BC_type structure to override
+    type(time_type),          intent(in)    :: time !< The current model time
+
+    integer :: m, n
+
+    do n = 1, var%num_bcs
+      do m = 1, var%bc(n)%num_fields
+        call data_override(gridname, var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_8, Time)
+      enddo
+    enddo
+  end subroutine CT_data_override_3d_r8
 
 
   !> @brief Write out checksums for the elements of a coupler_2d_bc_type
-  subroutine CT_write_chksums_2d(var, outunit, name_lead)
+  subroutine CT_write_chksums_2d_r4(var, outunit, name_lead)
     type(coupler_2d_bc_type),   intent(in) :: var  !< BC_type structure for which to register diagnostics
     integer,                    intent(in) :: outunit !< The index of a open output file
     character(len=*), optional, intent(in) :: name_lead !< An optional prefix for the variable names
@@ -3892,13 +5822,34 @@ contains
           var_name = trim(var%bc(n)%field(m)%name)
         endif
         write(outunit, '("   CHECKSUM:: ",A40," = ",Z20)') trim(var_name),&
-            & mpp_chksum(var%bc(n)%field(m)%values(var%isc:var%iec,var%jsc:var%jec) )
+            & mpp_chksum(var%bc(n)%field(m)%values_4(var%isc:var%iec,var%jsc:var%jec) )
       enddo
     enddo
-  end subroutine CT_write_chksums_2d
+  end subroutine CT_write_chksums_2d_r4
+
+  subroutine CT_write_chksums_2d_r8(var, outunit, name_lead)
+    type(coupler_2d_bc_type),   intent(in) :: var  !< BC_type structure for which to register diagnostics
+    integer,                    intent(in) :: outunit !< The index of a open output file
+    character(len=*), optional, intent(in) :: name_lead !< An optional prefix for the variable names
+
+    character(len=120) :: var_name
+    integer :: m, n
+
+    do n = 1, var%num_bcs
+      do m = 1, var%bc(n)%num_fields
+        if (present(name_lead)) then
+          var_name = trim(name_lead)//trim(var%bc(n)%field(m)%name)
+        else
+          var_name = trim(var%bc(n)%field(m)%name)
+        endif
+        write(outunit, '("   CHECKSUM:: ",A40," = ",Z20)') trim(var_name),&
+            & mpp_chksum(var%bc(n)%field(m)%values_8(var%isc:var%iec,var%jsc:var%jec) )
+      enddo
+    enddo
+  end subroutine CT_write_chksums_2d_r8
 
   !> @brief Write out checksums for the elements of a coupler_3d_bc_type
-  subroutine CT_write_chksums_3d(var, outunit, name_lead)
+  subroutine CT_write_chksums_3d_r4(var, outunit, name_lead)
     type(coupler_3d_bc_type),   intent(in) :: var  !< BC_type structure for which to register diagnostics
     integer,                    intent(in) :: outunit !< The index of a open output file
     character(len=*), optional, intent(in) :: name_lead !< An optional prefix for the variable names
@@ -3914,10 +5865,31 @@ contains
           var_name = trim(var%bc(n)%field(m)%name)
         endif
         write(outunit, '("   CHECKSUM:: ",A40," = ",Z20)') var_name,&
-            & mpp_chksum(var%bc(n)%field(m)%values(var%isc:var%iec,var%jsc:var%jec,:) )
+            & mpp_chksum(var%bc(n)%field(m)%values_4(var%isc:var%iec,var%jsc:var%jec,:) )
       enddo
     enddo
-  end subroutine CT_write_chksums_3d
+  end subroutine CT_write_chksums_3d_r4
+
+  subroutine CT_write_chksums_3d_r8(var, outunit, name_lead)
+    type(coupler_3d_bc_type),   intent(in) :: var  !< BC_type structure for which to register diagnostics
+    integer,                    intent(in) :: outunit !< The index of a open output file
+    character(len=*), optional, intent(in) :: name_lead !< An optional prefix for the variable names
+
+    character(len=120) :: var_name
+    integer :: m, n
+
+    do n = 1, var%num_bcs
+      do m = 1, var%bc(n)%num_fields
+        if (present(name_lead)) then
+          var_name = trim(name_lead)//trim(var%bc(n)%field(m)%name)
+        else
+          var_name = trim(var%bc(n)%field(m)%name)
+        endif
+        write(outunit, '("   CHECKSUM:: ",A40," = ",Z20)') var_name,&
+            & mpp_chksum(var%bc(n)%field(m)%values_8(var%isc:var%iec,var%jsc:var%jec,:) )
+      enddo
+    enddo
+  end subroutine CT_write_chksums_3d_r8
 
 
   !> @brief Indicate whether a coupler_1d_bc_type has been initialized.
@@ -3945,7 +5917,7 @@ contains
   end function CT_initialized_3d
 
   !> @brief Deallocate all data associated with a coupler_1d_bc_type
-  subroutine CT_destructor_1d(var)
+  subroutine CT_destructor_1d_r4(var)
     type(coupler_1d_bc_type), intent(inout) :: var  !< BC_type structure to be deconstructed
 
     integer :: m, n
@@ -3953,7 +5925,7 @@ contains
     if (var%num_bcs > 0) then
       do n = 1, var%num_bcs
         do m = 1, var%bc(n)%num_fields
-          deallocate ( var%bc(n)%field(m)%values )
+          deallocate ( var%bc(n)%field(m)%values_4 )
         enddo
         deallocate ( var%bc(n)%field )
       enddo
@@ -3962,10 +5934,29 @@ contains
 
     var%num_bcs = 0
     var%set = .false.
-  end subroutine CT_destructor_1d
+  end subroutine CT_destructor_1d_r4
+
+  subroutine CT_destructor_1d_r8(var)
+    type(coupler_1d_bc_type), intent(inout) :: var  !< BC_type structure to be deconstructed
+
+    integer :: m, n
+
+    if (var%num_bcs > 0) then
+      do n = 1, var%num_bcs
+        do m = 1, var%bc(n)%num_fields
+          deallocate ( var%bc(n)%field(m)%values_8 )
+        enddo
+        deallocate ( var%bc(n)%field )
+      enddo
+      deallocate ( var%bc )
+    endif
+
+    var%num_bcs = 0
+    var%set = .false.
+  end subroutine CT_destructor_1d_r8
 
   !> @brief Deallocate all data associated with a coupler_2d_bc_type
-  subroutine CT_destructor_2d(var)
+  subroutine CT_destructor_2d_r4(var)
     type(coupler_2d_bc_type), intent(inout) :: var  !< BC_type structure to be deconstructed
 
     integer :: m, n
@@ -3973,7 +5964,7 @@ contains
     if (var%num_bcs > 0) then
       do n = 1, var%num_bcs
         do m = 1, var%bc(n)%num_fields
-          deallocate ( var%bc(n)%field(m)%values )
+          deallocate ( var%bc(n)%field(m)%values_4 )
         enddo
         deallocate ( var%bc(n)%field )
       enddo
@@ -3982,10 +5973,29 @@ contains
 
     var%num_bcs = 0
     var%set = .false.
-  end subroutine CT_destructor_2d
+  end subroutine CT_destructor_2d_r4
+
+  subroutine CT_destructor_2d_r8(var)
+    type(coupler_2d_bc_type), intent(inout) :: var  !< BC_type structure to be deconstructed
+
+    integer :: m, n
+
+    if (var%num_bcs > 0) then
+      do n = 1, var%num_bcs
+        do m = 1, var%bc(n)%num_fields
+          deallocate ( var%bc(n)%field(m)%values_8 )
+        enddo
+        deallocate ( var%bc(n)%field )
+      enddo
+      deallocate ( var%bc )
+    endif
+
+    var%num_bcs = 0
+    var%set = .false.
+  end subroutine CT_destructor_2d_r8
 
   !> @brief Deallocate all data associated with a coupler_3d_bc_type
-  subroutine CT_destructor_3d(var)
+  subroutine CT_destructor_3d_r4(var)
     type(coupler_3d_bc_type), intent(inout) :: var  !< BC_type structure to be deconstructed
 
     integer :: m, n
@@ -3993,7 +6003,7 @@ contains
     if (var%num_bcs > 0) then
       do n = 1, var%num_bcs
         do m = 1, var%bc(n)%num_fields
-          deallocate ( var%bc(n)%field(m)%values )
+          deallocate ( var%bc(n)%field(m)%values_4 )
         enddo
         deallocate ( var%bc(n)%field )
       enddo
@@ -4002,5 +6012,24 @@ contains
 
     var%num_bcs = 0
     var%set = .false.
-  end subroutine CT_destructor_3d
+  end subroutine CT_destructor_3d_r4
+
+  subroutine CT_destructor_3d_r8(var)
+    type(coupler_3d_bc_type), intent(inout) :: var  !< BC_type structure to be deconstructed
+
+    integer :: m, n
+
+    if (var%num_bcs > 0) then
+      do n = 1, var%num_bcs
+        do m = 1, var%bc(n)%num_fields
+          deallocate ( var%bc(n)%field(m)%values_8 )
+        enddo
+        deallocate ( var%bc(n)%field )
+      enddo
+      deallocate ( var%bc )
+    endif
+
+    var%num_bcs = 0
+    var%set = .false.
+  end subroutine CT_destructor_3d_r8
 end module coupler_types_mod
