@@ -258,8 +258,7 @@ module coupler_types_mod
   !! with the data from another.  Both must have the same horizontal size and
   !! decomposition, but a 2d type may be incremented by a 2d or 3d type
   interface coupler_type_increment_data
-    module procedure CT_increment_data_2d_2d_r4, CT_increment_data_3d_3d_r4, CT_increment_data_2d_3d_r4
-    module procedure CT_increment_data_2d_2d_r8, CT_increment_data_3d_3d_r8, CT_increment_data_2d_3d_r8
+    module procedure CT_increment_data_2d_2d, CT_increment_data_3d_3d, CT_increment_data_2d_3d
   end interface coupler_type_increment_data
 
   !> @brief This is the interface to extract a field in a coupler_bc_type into an array.
@@ -2253,8 +2252,8 @@ contains
   !! @throw FATAL, "There is an j-direction computational domain size mismatch."
   !! @throw FATAL, "Excessive i-direction halo size for the input structure."
   !! @throw FATAL, "Excessive i-direction halo size for the input structure."
-  subroutine CT_increment_data_2d_2d_r4(var_in, var, halo_size, bc_index, field_index,&
-      & scale_factor, scale_prev, exclude_flux_type, only_flux_type, pass_through_ice)
+  subroutine CT_increment_data_2d_2d(var_in, var, halo_size, bc_index, field_index,&
+      & scale_factor, scale_prev, scale_factor_8, scale_prev_8, exclude_flux_type, only_flux_type, pass_through_ice)
     type(coupler_2d_bc_type),   intent(in)    :: var_in  !< BC_type structure with the data to add to the other type
     type(coupler_2d_bc_type),   intent(inout) :: var !< The BC_type structure whose fields are being incremented
     integer,          optional, intent(in)    :: halo_size !< The extent of the halo to increment; 0 by default
@@ -2264,6 +2263,8 @@ contains
                                                          !! boundary condition that is being copied
     real(FLOAT_KIND), optional, intent(in)    :: scale_factor  !< A scaling factor for the data that is being added
     real(FLOAT_KIND), optional, intent(in)    :: scale_prev    !< A scaling factor for the data that is already here
+    real(DOUBLE_KIND),optional, intent(in)    :: scale_factor_8  !< A scaling factor for the data that is being added
+    real(DOUBLE_KIND),optional, intent(in)    :: scale_prev_8    !< A scaling factor for the data that is already here
     character(len=*), optional, intent(in)    :: exclude_flux_type !< A string describing which types
                                                          !! of fluxes to exclude from this increment.
     character(len=*), optional, intent(in)    :: only_flux_type    !< A string describing which types
@@ -2272,24 +2273,29 @@ contains
                                                          !! value of pass_through ice matches this
 
     real(FLOAT_KIND) :: scale, sc_prev
+    real(DOUBLE_KIND) :: scale_8, sc_prev_8
     logical :: increment_bc
     integer :: i, j, m, n, n1, n2, halo, i_off, j_off
 
-    scale = 1.0
+    scale = 1.0 
+    scale_8 = 1.0d0
     if (present(scale_factor)) scale = scale_factor
+    if (present(scale_factor_8)) scale_8 = scale_factor_8
     sc_prev = 1.0
+    sc_prev_8 = 1.0d0
     if (present(scale_prev)) sc_prev = scale_prev
+    if (present(scale_prev_8)) sc_prev_8 = scale_prev_8
 
     if (present(bc_index)) then
       if (bc_index > var_in%num_bcs)&
-          & call mpp_error(FATAL, "CT_increment_data_2d_2d_r4: bc_index is present and exceeds var_in%num_bcs.")
+          & call mpp_error(FATAL, "CT_increment_data_2d_2d: bc_index is present and exceeds var_in%num_bcs.")
       if (present(field_index)) then
         if (field_index > var_in%bc(bc_index)%num_fields)&
-            & call mpp_error(FATAL, "CT_increment_data_2d_2d_r4: field_index is present and exceeds num_fields for" //&
+            & call mpp_error(FATAL, "CT_increment_data_2d_2d: field_index is present and exceeds num_fields for" //&
             & trim(var_in%bc(bc_index)%name) )
       endif
     elseif (present(field_index)) then
-      call mpp_error(FATAL, "CT_increment_data_2d_2d_r4: bc_index must be present if field_index is present.")
+      call mpp_error(FATAL, "CT_increment_data_2d_2d: bc_index must be present if field_index is present.")
     endif
 
     halo = 0
@@ -2305,17 +2311,17 @@ contains
     if (n2 >= n1) then
       ! A more consciencious implementation would include a more descriptive error messages.
       if ((var_in%iec-var_in%isc) /= (var%iec-var%isc))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_r4: There is an i-direction computational domain size mismatch.")
+          & call mpp_error(FATAL, "CT_increment_data_2d: There is an i-direction computational domain size mismatch.")
       if ((var_in%jec-var_in%jsc) /= (var%jec-var%jsc))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_r4: There is a j-direction computational domain size mismatch.")
+          & call mpp_error(FATAL, "CT_increment_data_2d: There is a j-direction computational domain size mismatch.")
       if ((var_in%isc-var_in%isd < halo) .or. (var_in%ied-var_in%iec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_r4: Excessive i-direction halo size for the input structure.")
+          & call mpp_error(FATAL, "CT_increment_data_2d: Excessive i-direction halo size for the input structure.")
       if ((var_in%jsc-var_in%jsd < halo) .or. (var_in%jed-var_in%jec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_r4: Excessive j-direction halo size for the input structure.")
+          & call mpp_error(FATAL, "CT_increment_data_2d: Excessive j-direction halo size for the input structure.")
       if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_r4: Excessive i-direction halo size for the output structure.")
+          & call mpp_error(FATAL, "CT_increment_data_2d: Excessive i-direction halo size for the output structure.")
       if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_r4: Excessive j-direction halo size for the output structure.")
+          & call mpp_error(FATAL, "CT_increment_data_2d: Excessive j-direction halo size for the output structure.")
 
       i_off = var_in%isc - var%isc
       j_off = var_in%jsc - var%jsc
@@ -2343,105 +2349,17 @@ contains
             enddo
           enddo
         endif
-      enddo
-    enddo
-  end subroutine CT_increment_data_2d_2d_r4
-
-
-  subroutine CT_increment_data_2d_2d_r8(var_in, var, halo_size, bc_index, field_index,&
-      & scale_factor, scale_prev, exclude_flux_type, only_flux_type, pass_through_ice)
-    type(coupler_2d_bc_type),   intent(in)    :: var_in  !< BC_type structure with the data to add to the other type
-    type(coupler_2d_bc_type),   intent(inout) :: var !< The BC_type structure whose fields are being incremented
-    integer,          optional, intent(in)    :: halo_size !< The extent of the halo to increment; 0 by default
-    integer,          optional, intent(in)    :: bc_index  !< The index of the boundary condition
-                                                         !! that is being copied
-    integer,          optional, intent(in)    :: field_index !< The index of the field in the
-                                                         !! boundary condition that is being copied
-    real(DOUBLE_KIND),optional, intent(in)    :: scale_factor  !< A scaling factor for the data that is being added
-    real(DOUBLE_KIND),optional, intent(in)    :: scale_prev    !< A scaling factor for the data that is already here
-    character(len=*), optional, intent(in)    :: exclude_flux_type !< A string describing which types
-                                                         !! of fluxes to exclude from this increment.
-    character(len=*), optional, intent(in)    :: only_flux_type    !< A string describing which types
-                                                         !! of fluxes to include from this increment.
-    logical,          optional, intent(in)    :: pass_through_ice !< If true, only increment BCs whose
-                                                         !! value of pass_through ice matches this
-
-    real(DOUBLE_KIND) :: scale, sc_prev
-    logical :: increment_bc
-    integer :: i, j, m, n, n1, n2, halo, i_off, j_off
-
-    scale = 1.0
-    if (present(scale_factor)) scale = scale_factor
-    sc_prev = 1.0
-    if (present(scale_prev)) sc_prev = scale_prev
-
-    if (present(bc_index)) then
-      if (bc_index > var_in%num_bcs)&
-          & call mpp_error(FATAL, "CT_increment_data_2d_2d_r8: bc_index is present and exceeds var_in%num_bcs.")
-      if (present(field_index)) then
-        if (field_index > var_in%bc(bc_index)%num_fields)&
-            & call mpp_error(FATAL, "CT_increment_data_2d_2d_r8: field_index is present and exceeds num_fields for" //&
-            & trim(var_in%bc(bc_index)%name) )
-      endif
-    elseif (present(field_index)) then
-      call mpp_error(FATAL, "CT_increment_data_2d_2d_r8: bc_index must be present if field_index is present.")
-    endif
-
-    halo = 0
-    if (present(halo_size)) halo = halo_size
-
-    n1 = 1
-    n2 = var_in%num_bcs
-    if (present(bc_index)) then
-      n1 = bc_index
-      n2 = bc_index
-    endif
-
-    if (n2 >= n1) then
-      ! A more consciencious implementation would include a more descriptive error messages.
-      if ((var_in%iec-var_in%isc) /= (var%iec-var%isc))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_r8: There is an i-direction computational domain size mismatch.")
-      if ((var_in%jec-var_in%jsc) /= (var%jec-var%jsc))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_r8: There is a j-direction computational domain size mismatch.")
-      if ((var_in%isc-var_in%isd < halo) .or. (var_in%ied-var_in%iec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_r8: Excessive i-direction halo size for the input structure.")
-      if ((var_in%jsc-var_in%jsd < halo) .or. (var_in%jed-var_in%jec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_r8: Excessive j-direction halo size for the input structure.")
-      if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_r8: Excessive i-direction halo size for the output structure.")
-      if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_r8: Excessive j-direction halo size for the output structure.")
-
-      i_off = var_in%isc - var%isc
-      j_off = var_in%jsc - var%jsc
-    endif
-
-    do n = n1, n2
-      increment_bc = .true.
-      if (increment_bc .and. present(exclude_flux_type))&
-          & increment_bc = .not.(trim(var%bc(n)%flux_type) == trim(exclude_flux_type))
-      if (increment_bc .and. present(only_flux_type))&
-          & increment_bc = (trim(var%bc(n)%flux_type) == trim(only_flux_type))
-      if (increment_bc .and. present(pass_through_ice))&
-          & increment_bc = (pass_through_ice .eqv. var%bc(n)%pass_through_ice)
-      if (.not.increment_bc) cycle
-
-      do m = 1, var_in%bc(n)%num_fields
-        if (present(field_index)) then
-          if (m /= field_index) cycle
-        endif
         if ( associated(var%bc(n)%field(m)%values_8) ) then
           do j=var%jsc-halo,var%jec+halo
             do i=var%isc-halo,var%iec+halo
-              var%bc(n)%field(m)%values_8(i,j) = sc_prev * var%bc(n)%field(m)%values_8(i,j) +&
-                  & scale * var_in%bc(n)%field(m)%values_8(i+i_off,j+j_off)
+              var%bc(n)%field(m)%values_8(i,j) = sc_prev_8 * var%bc(n)%field(m)%values_8(i,j) +&
+                  & scale_8 * var_in%bc(n)%field(m)%values_8(i+i_off,j+j_off)
             enddo
           enddo
         endif
       enddo
     enddo
-  end subroutine CT_increment_data_2d_2d_r8
-
+  end subroutine CT_increment_data_2d_2d
 
   !! @brief Increment data in all elements of one coupler_3d_bc_type
   !!
@@ -2457,8 +2375,8 @@ contains
   !! @throw FATAL, "Excessive i-direction halo size for the input structure."
   !! @throw FATAL, "Excessive i-direction halo size for the input structure."
   !! @throw FATAL, "Excessive k-direction halo size for the input structure."
-  subroutine CT_increment_data_3d_3d_r4(var_in, var, halo_size, bc_index, field_index,&
-      & scale_factor, scale_prev, exclude_flux_type, only_flux_type, pass_through_ice)
+  subroutine CT_increment_data_3d_3d(var_in, var, halo_size, bc_index, field_index,&
+      & scale_factor, scale_prev, scale_factor_8, scale_prev_8, exclude_flux_type, only_flux_type, pass_through_ice)
     type(coupler_3d_bc_type),   intent(in)    :: var_in  !< BC_type structure with the data to add to the other type
     type(coupler_3d_bc_type),   intent(inout) :: var !< The BC_type structure whose fields are being incremented
     integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default
@@ -2468,6 +2386,8 @@ contains
                                                          !! boundary condition that is being copied
     real(FLOAT_KIND), optional, intent(in)    :: scale_factor  !< A scaling factor for the data that is being added
     real(FLOAT_KIND), optional, intent(in)    :: scale_prev !< A scaling factor for the data that is already here
+    real(DOUBLE_KIND),optional, intent(in)    :: scale_factor_8  !< A scaling factor for the data that is being added
+    real(DOUBLE_KIND),optional, intent(in)    :: scale_prev_8 !< A scaling factor for the data that is already here
     character(len=*), optional, intent(in)    :: exclude_flux_type !< A string describing which types
                                                          !! of fluxes to exclude from this increment.
     character(len=*), optional, intent(in)    :: only_flux_type !< A string describing which types of
@@ -2476,23 +2396,28 @@ contains
                                                          !! value of pass_through ice matches this
 
     real(FLOAT_KIND) :: scale, sc_prev
+    real(DOUBLE_KIND):: scale_8, sc_prev_8
     logical :: increment_bc
     integer :: i, j, k, m, n, n1, n2, halo, i_off, j_off, k_off
 
     scale = 1.0
+    scale_8 = 1.0d0
     if (present(scale_factor)) scale = scale_factor
+    if (present(scale_factor_8)) scale_8 = scale_factor_8
     sc_prev = 1.0
+    sc_prev_8 = 1.0d0
     if (present(scale_prev)) sc_prev = scale_prev
+    if (present(scale_prev_8)) sc_prev_8 = scale_prev_8
 
     if (present(bc_index)) then
       if (bc_index > var_in%num_bcs)&
-          & call mpp_error(FATAL, "CT_increment_data_3d_3d_r4: bc_index is present and exceeds var_in%num_bcs.")
+          & call mpp_error(FATAL, "CT_increment_data_3d_3d: bc_index is present and exceeds var_in%num_bcs.")
       if (present(field_index)) then ; if (field_index > var_in%bc(bc_index)%num_fields)&
-          & call mpp_error(FATAL, "CT_increment_data_3d_3d_r4: field_index is present and exceeds num_fields for" //&
+          & call mpp_error(FATAL, "CT_increment_data_3d_3d: field_index is present and exceeds num_fields for" //&
           & trim(var_in%bc(bc_index)%name) )
       endif
     elseif (present(field_index)) then
-      call mpp_error(FATAL, "CT_increment_data_3d_3d_r4: bc_index must be present if field_index is present.")
+      call mpp_error(FATAL, "CT_increment_data_3d_3d: bc_index must be present if field_index is present.")
     endif
 
     halo = 0
@@ -2508,19 +2433,19 @@ contains
     if (n2 >= n1) then
       ! A more consciencious implementation would include a more descriptive error messages.
       if ((var_in%iec-var_in%isc) /= (var%iec-var%isc))&
-          & call mpp_error(FATAL, "CT_increment_data_3d_r4: There is an i-direction computational domain size mismatch.")
+          & call mpp_error(FATAL, "CT_increment_data_3d: There is an i-direction computational domain size mismatch.")
       if ((var_in%jec-var_in%jsc) /= (var%jec-var%jsc))&
-          & call mpp_error(FATAL, "CT_increment_data_3d_r4: There is a j-direction computational domain size mismatch.")
+          & call mpp_error(FATAL, "CT_increment_data_3d: There is a j-direction computational domain size mismatch.")
       if ((var_in%ke-var_in%ks) /= (var%ke-var%ks))&
-          & call mpp_error(FATAL, "CT_increment_data_3d_r4: There is a k-direction computational domain size mismatch.")
+          & call mpp_error(FATAL, "CT_increment_data_3d: There is a k-direction computational domain size mismatch.")
       if ((var_in%isc-var_in%isd < halo) .or. (var_in%ied-var_in%iec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_3d_r4: Excessive i-direction halo size for the input structure.")
+          & call mpp_error(FATAL, "CT_increment_data_3d: Excessive i-direction halo size for the input structure.")
       if ((var_in%jsc-var_in%jsd < halo) .or. (var_in%jed-var_in%jec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_3d_r4: Excessive j-direction halo size for the input structure.")
+          & call mpp_error(FATAL, "CT_increment_data_3d: Excessive j-direction halo size for the input structure.")
       if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_3d_r4: Excessive i-direction halo size for the output structure.")
+          & call mpp_error(FATAL, "CT_increment_data_3d: Excessive i-direction halo size for the output structure.")
       if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_3d_r4: Excessive j-direction halo size for the output structure.")
+          & call mpp_error(FATAL, "CT_increment_data_3d: Excessive j-direction halo size for the output structure.")
 
       i_off = var_in%isc - var%isc
       j_off = var_in%jsc - var%jsc
@@ -2551,107 +2476,19 @@ contains
             enddo
           enddo
         endif
-      enddo
-    enddo
-  end subroutine CT_increment_data_3d_3d_r4
-
-  subroutine CT_increment_data_3d_3d_r8(var_in, var, halo_size, bc_index, field_index,&
-      & scale_factor, scale_prev, exclude_flux_type, only_flux_type, pass_through_ice)
-    type(coupler_3d_bc_type),   intent(in)    :: var_in  !< BC_type structure with the data to add to the other type
-    type(coupler_3d_bc_type),   intent(inout) :: var !< The BC_type structure whose fields are being incremented
-    integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default
-    integer,          optional, intent(in)    :: bc_index !< The index of the boundary condition
-                                                         !! that is being copied
-    integer,          optional, intent(in)    :: field_index !< The index of the field in the
-                                                         !! boundary condition that is being copied
-    real(DOUBLE_KIND),optional, intent(in)    :: scale_factor  !< A scaling factor for the data that is being added
-    real(DOUBLE_KIND),optional, intent(in)    :: scale_prev !< A scaling factor for the data that is already here
-    character(len=*), optional, intent(in)    :: exclude_flux_type !< A string describing which types
-                                                         !! of fluxes to exclude from this increment.
-    character(len=*), optional, intent(in)    :: only_flux_type !< A string describing which types of
-                                                         !! fluxes to include from this increment.
-    logical,          optional, intent(in)    :: pass_through_ice !< If true, only increment BCs whose
-                                                         !! value of pass_through ice matches this
-
-    real(DOUBLE_KIND) :: scale, sc_prev
-    logical :: increment_bc
-    integer :: i, j, k, m, n, n1, n2, halo, i_off, j_off, k_off
-
-    scale = 1.0
-    if (present(scale_factor)) scale = scale_factor
-    sc_prev = 1.0
-    if (present(scale_prev)) sc_prev = scale_prev
-
-    if (present(bc_index)) then
-      if (bc_index > var_in%num_bcs)&
-          & call mpp_error(FATAL, "CT_increment_data_3d_3d_r8: bc_index is present and exceeds var_in%num_bcs.")
-      if (present(field_index)) then ; if (field_index > var_in%bc(bc_index)%num_fields)&
-          & call mpp_error(FATAL, "CT_increment_data_3d_3d_r8: field_index is present and exceeds num_fields for" //&
-          & trim(var_in%bc(bc_index)%name) )
-      endif
-    elseif (present(field_index)) then
-      call mpp_error(FATAL, "CT_increment_data_3d_3d_r8: bc_index must be present if field_index is present.")
-    endif
-
-    halo = 0
-    if (present(halo_size)) halo = halo_size
-
-    n1 = 1
-    n2 = var_in%num_bcs
-    if (present(bc_index)) then
-      n1 = bc_index
-      n2 = bc_index
-    endif
-
-    if (n2 >= n1) then
-      ! A more consciencious implementation would include a more descriptive error messages.
-      if ((var_in%iec-var_in%isc) /= (var%iec-var%isc))&
-          & call mpp_error(FATAL, "CT_increment_data_3d_r8: There is an i-direction computational domain size mismatch.")
-      if ((var_in%jec-var_in%jsc) /= (var%jec-var%jsc))&
-          & call mpp_error(FATAL, "CT_increment_data_3d_r8: There is a j-direction computational domain size mismatch.")
-      if ((var_in%ke-var_in%ks) /= (var%ke-var%ks))&
-          & call mpp_error(FATAL, "CT_increment_data_3d_r8: There is a k-direction computational domain size mismatch.")
-      if ((var_in%isc-var_in%isd < halo) .or. (var_in%ied-var_in%iec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_3d_r8: Excessive i-direction halo size for the input structure.")
-      if ((var_in%jsc-var_in%jsd < halo) .or. (var_in%jed-var_in%jec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_3d_r8: Excessive j-direction halo size for the input structure.")
-      if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_3d_r8: Excessive i-direction halo size for the output structure.")
-      if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_3d_r8: Excessive j-direction halo size for the output structure.")
-
-      i_off = var_in%isc - var%isc
-      j_off = var_in%jsc - var%jsc
-      k_off = var_in%ks - var%ks
-    endif
-
-    do n = n1, n2
-      increment_bc = .true.
-      if (increment_bc .and. present(exclude_flux_type))&
-          & increment_bc = .not.(trim(var%bc(n)%flux_type) == trim(exclude_flux_type))
-      if (increment_bc .and. present(only_flux_type))&
-          & increment_bc = (trim(var%bc(n)%flux_type) == trim(only_flux_type))
-      if (increment_bc .and. present(pass_through_ice))&
-          & increment_bc = (pass_through_ice .eqv. var%bc(n)%pass_through_ice)
-      if (.not.increment_bc) cycle
-
-      do m = 1, var_in%bc(n)%num_fields
-        if (present(field_index)) then
-          if (m /= field_index) cycle
-        endif
         if ( associated(var%bc(n)%field(m)%values_8) ) then
           do k=var%ks,var%ke
             do j=var%jsc-halo,var%jec+halo
               do i=var%isc-halo,var%iec+halo
-                var%bc(n)%field(m)%values_8(i,j,k) = sc_prev * var%bc(n)%field(m)%values_8(i,j,k) +&
-                    & scale * var_in%bc(n)%field(m)%values_8(i+i_off,j+j_off,k+k_off)
+                var%bc(n)%field(m)%values_8(i,j,k) = sc_prev_8 * var%bc(n)%field(m)%values_8(i,j,k) +&
+                    & scale_8 * var_in%bc(n)%field(m)%values_8(i+i_off,j+j_off,k+k_off)
               enddo
             enddo
           enddo
         endif
       enddo
     enddo
-  end subroutine CT_increment_data_3d_3d_r8
+  end subroutine CT_increment_data_3d_3d
 
   !! @brief Increment data in the elements of a coupler_2d_bc_type with weighted averages of elements of a
   !! coupler_3d_bc_type
@@ -2670,10 +2507,14 @@ contains
   !! @throw FATAL, "Excessive i-direction halo size for the input structure."
   !! @throw FATAL, "weights array must be the i-size of a computational or data domain."
   !! @throw FATAL, "weights array must be the j-size of a computational or data domain."
-  subroutine CT_increment_data_2d_3d_r4(var_in, weights, var, halo_size, bc_index, field_index,&
-      & scale_factor, scale_prev, exclude_flux_type, only_flux_type, pass_through_ice)
+  subroutine CT_increment_data_2d_3d(var_in, weights, weights_8, var, halo_size, bc_index, field_index,&
+      & scale_factor, scale_prev, scale_factor_8, scale_prev_8, exclude_flux_type, only_flux_type, pass_through_ice)
     type(coupler_3d_bc_type),   intent(in)    :: var_in  !< BC_type structure with the data to add to the other type
-    real(FLOAT_KIND), dimension(:,:,:),     intent(in)    :: weights !< An array of normalized weights for the 3d-data to
+    real(FLOAT_KIND), optional, dimension(:,:,:), intent(in)    :: weights !< An array of normalized weights for the 3d-data to
+                                                         !! increment the 2d-data.  There is no renormalization,
+                                                         !! so if the weights do not sum to 1 in the 3rd dimension
+                                                         !! there may be adverse consequences!
+    real(DOUBLE_KIND), optional, dimension(:,:,:), intent(in)    :: weights_8 !< An array of normalized weights for the 3d-data to
                                                          !! increment the 2d-data.  There is no renormalization,
                                                          !! so if the weights do not sum to 1 in the 3rd dimension
                                                          !! there may be adverse consequences!
@@ -2685,6 +2526,8 @@ contains
                                                          !! boundary condition that is being copied
     real(FLOAT_KIND), optional, intent(in)    :: scale_factor  !< A scaling factor for the data that is being added
     real(FLOAT_KIND), optional, intent(in)    :: scale_prev    !< A scaling factor for the data that is already here
+    real(DOUBLE_KIND),optional, intent(in)    :: scale_factor_8  !< A scaling factor for the data that is being added
+    real(DOUBLE_KIND),optional, intent(in)    :: scale_prev_8 !< A scaling factor for the data that is already here
     character(len=*), optional, intent(in)    :: exclude_flux_type !< A string describing which types
                                                          !! of fluxes to exclude from this increment.
     character(len=*), optional, intent(in)    :: only_flux_type    !< A string describing which types
@@ -2693,24 +2536,29 @@ contains
                                                          !! value of pass_through ice matches this
 
     real(FLOAT_KIND) :: scale, sc_prev
+    real(DOUBLE_KIND) :: scale_8, sc_prev_8
     logical :: increment_bc
     integer :: i, j, k, m, n, n1, n2, halo
     integer :: io1, jo1, iow, jow, kow  ! Offsets to account for different index conventions.
 
     scale = 1.0
+    scale_8 = 1.0d0
     if (present(scale_factor)) scale = scale_factor
+    if (present(scale_factor_8)) scale_8 = scale_factor_8
     sc_prev = 1.0
+    sc_prev_8 = 1.0d0
     if (present(scale_prev)) sc_prev = scale_prev
+    if (present(scale_prev_8)) sc_prev_8 = scale_prev_8
 
     if (present(bc_index)) then
       if (bc_index > var_in%num_bcs)&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: bc_index is present and exceeds var_in%num_bcs.")
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d: bc_index is present and exceeds var_in%num_bcs.")
       if (present(field_index)) then ; if (field_index > var_in%bc(bc_index)%num_fields)&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: field_index is present and exceeds num_fields for" //&
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d: field_index is present and exceeds num_fields for" //&
           & trim(var_in%bc(bc_index)%name) )
       endif
     elseif (present(field_index)) then
-      call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: bc_index must be present if field_index is present.")
+      call mpp_error(FATAL, "CT_increment_data_2d_3d: bc_index must be present if field_index is present.")
     endif
 
     halo = 0
@@ -2726,37 +2574,66 @@ contains
     if (n2 >= n1) then
       ! A more consciencious implementation would include a more descriptive error messages.
       if ((var_in%iec-var_in%isc) /= (var%iec-var%isc))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: There is an i-direction computational domain size mismatch.")
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d: There is an i-direction computational domain size mismatch.")
       if ((var_in%jec-var_in%jsc) /= (var%jec-var%jsc))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: There is a j-direction computational domain size mismatch.")
-      if ((1+var_in%ke-var_in%ks) /= size(weights,3))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: There is a k-direction size mismatch with the weights array.")
-      if ((var_in%isc-var_in%isd < halo) .or. (var_in%ied-var_in%iec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: Excessive i-direction halo size for the input structure.")
-      if ((var_in%jsc-var_in%jsd < halo) .or. (var_in%jed-var_in%jec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: Excessive j-direction halo size for the input structure.")
-      if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: Excessive i-direction halo size for the output structure.")
-      if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: Excessive j-direction halo size for the output structure.")
-
-      if ((1+var%iec-var%isc) == size(weights,1)) then
-        iow = 1 - var%isc
-      elseif ((1+var%ied-var%isd) == size(weights,1)) then
-        iow = 1 - var%isd
-      elseif ((1+var_in%ied-var_in%isd) == size(weights,1)) then
-        iow = 1 + (var_in%isc - var_in%isd) - var%isc
-      else
-        call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: weights array must be the i-size of a computational or data domain.")
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d: There is a j-direction computational domain size mismatch.")
+      if (present(weights)) then
+        if ((1+var_in%ke-var_in%ks) /= size(weights,3))&
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d: There is a k-direction size mismatch with the weights array.")
       endif
-      if ((1+var%jec-var%jsc) == size(weights,2)) then
-        jow = 1 - var%jsc
-      elseif ((1+var%jed-var%jsd) == size(weights,2)) then
-        jow = 1 - var%jsd
-      elseif ((1+var_in%jed-var_in%jsd) == size(weights,2)) then
-        jow = 1 + (var_in%jsc - var_in%jsd) - var%jsc
-      else
-        call mpp_error(FATAL, "CT_increment_data_2d_3d_r4: weights array must be the j-size of a computational or data domain.")
+      if (present(weights_8)) then
+        if ((1+var_in%ke-var_in%ks) /= size(weights_8,3))&
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d: There is a k-direction size mismatch with the weights_8 array.")
+      endif
+      if ((var_in%isc-var_in%isd < halo) .or. (var_in%ied-var_in%iec < halo))&
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d: Excessive i-direction halo size for the input structure.")
+      if ((var_in%jsc-var_in%jsd < halo) .or. (var_in%jed-var_in%jec < halo))&
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d: Excessive j-direction halo size for the input structure.")
+      if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d: Excessive i-direction halo size for the output structure.")
+      if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
+          & call mpp_error(FATAL, "CT_increment_data_2d_3d: Excessive j-direction halo size for the output structure.")
+
+      if (present(weights)) then
+        if ((1+var%iec-var%isc) == size(weights,1)) then
+          iow = 1 - var%isc
+        elseif ((1+var%ied-var%isd) == size(weights,1)) then
+          iow = 1 - var%isd
+        elseif ((1+var_in%ied-var_in%isd) == size(weights,1)) then
+          iow = 1 + (var_in%isc - var_in%isd) - var%isc
+        else
+          call mpp_error(FATAL, "CT_increment_data_2d_3d: weights array must be the i-size of a computational or data domain.")
+        endif
+        if ((1+var%jec-var%jsc) == size(weights,2)) then
+          jow = 1 - var%jsc
+        elseif ((1+var%jed-var%jsd) == size(weights,2)) then
+          jow = 1 - var%jsd
+        elseif ((1+var_in%jed-var_in%jsd) == size(weights,2)) then
+          jow = 1 + (var_in%jsc - var_in%jsd) - var%jsc
+        else
+          call mpp_error(FATAL, "CT_increment_data_2d_3d: weights array must be the j-size of a computational or data domain.")
+        endif
+      endif
+
+      if (present(weights_8)) then
+        if ((1+var%iec-var%isc) == size(weights_8,1)) then
+          iow = 1 - var%isc
+        elseif ((1+var%ied-var%isd) == size(weights_8,1)) then
+          iow = 1 - var%isd
+        elseif ((1+var_in%ied-var_in%isd) == size(weights_8,1)) then
+          iow = 1 + (var_in%isc - var_in%isd) - var%isc
+        else
+          call mpp_error(FATAL, "CT_increment_data_2d_3d: weights_8 array must be the i-size of a computational or data domain.")
+        endif
+        if ((1+var%jec-var%jsc) == size(weights_8,2)) then
+          jow = 1 - var%jsc
+        elseif ((1+var%jed-var%jsd) == size(weights_8,2)) then
+          jow = 1 - var%jsd
+        elseif ((1+var_in%jed-var_in%jsd) == size(weights_8,2)) then
+          jow = 1 + (var_in%jsc - var_in%jsd) - var%jsc
+        else
+          call mpp_error(FATAL, "CT_increment_data_2d_3d: weights_8 array must be the j-size of a computational or data domain.")
+        endif
       endif
 
       io1 = var_in%isc - var%isc
@@ -2788,131 +2665,19 @@ contains
             enddo
           enddo
         endif
-      enddo
-    enddo
-  end subroutine CT_increment_data_2d_3d_r4
-
-  subroutine CT_increment_data_2d_3d_r8(var_in, weights, var, halo_size, bc_index, field_index,&
-      & scale_factor, scale_prev, exclude_flux_type, only_flux_type, pass_through_ice)
-    type(coupler_3d_bc_type),   intent(in)    :: var_in  !< BC_type structure with the data to add to the other type
-    real(DOUBLE_KIND), dimension(:,:,:),     intent(in)    :: weights !< An array of normalized weights for the 3d-data to
-                                                         !! increment the 2d-data.  There is no renormalization,
-                                                         !! so if the weights do not sum to 1 in the 3rd dimension
-                                                         !! there may be adverse consequences!
-    type(coupler_2d_bc_type),   intent(inout) :: var !< The BC_type structure whose fields are being incremented
-    integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default
-    integer,          optional, intent(in)    :: bc_index  !< The index of the boundary condition
-                                                         !! that is being copied
-    integer,          optional, intent(in)    :: field_index !< The index of the field in the
-                                                         !! boundary condition that is being copied
-    real(DOUBLE_KIND),optional, intent(in)    :: scale_factor  !< A scaling factor for the data that is being added
-    real(DOUBLE_KIND),optional, intent(in)    :: scale_prev    !< A scaling factor for the data that is already here
-    character(len=*), optional, intent(in)    :: exclude_flux_type !< A string describing which types
-                                                         !! of fluxes to exclude from this increment.
-    character(len=*), optional, intent(in)    :: only_flux_type    !< A string describing which types
-                                                         !! of fluxes to include from this increment.
-    logical,          optional, intent(in)    :: pass_through_ice !< If true, only increment BCs whose
-                                                         !! value of pass_through ice matches this
-
-    real(DOUBLE_KIND) :: scale, sc_prev
-    logical :: increment_bc
-    integer :: i, j, k, m, n, n1, n2, halo
-    integer :: io1, jo1, iow, jow, kow  ! Offsets to account for different index conventions.
-
-    scale = 1.0
-    if (present(scale_factor)) scale = scale_factor
-    sc_prev = 1.0
-    if (present(scale_prev)) sc_prev = scale_prev
-
-    if (present(bc_index)) then
-      if (bc_index > var_in%num_bcs)&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: bc_index is present and exceeds var_in%num_bcs.")
-      if (present(field_index)) then ; if (field_index > var_in%bc(bc_index)%num_fields)&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: field_index is present and exceeds num_fields for" //&
-          & trim(var_in%bc(bc_index)%name) )
-      endif
-    elseif (present(field_index)) then
-      call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: bc_index must be present if field_index is present.")
-    endif
-
-    halo = 0
-    if (present(halo_size)) halo = halo_size
-
-    n1 = 1
-    n2 = var_in%num_bcs
-    if (present(bc_index)) then
-      n1 = bc_index
-      n2 = bc_index
-    endif
-
-    if (n2 >= n1) then
-      ! A more consciencious implementation would include a more descriptive error messages.
-      if ((var_in%iec-var_in%isc) /= (var%iec-var%isc))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: There is an i-direction computational domain size mismatch.")
-      if ((var_in%jec-var_in%jsc) /= (var%jec-var%jsc))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: There is a j-direction computational domain size mismatch.")
-      if ((1+var_in%ke-var_in%ks) /= size(weights,3))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: There is a k-direction size mismatch with the weights array.")
-      if ((var_in%isc-var_in%isd < halo) .or. (var_in%ied-var_in%iec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: Excessive i-direction halo size for the input structure.")
-      if ((var_in%jsc-var_in%jsd < halo) .or. (var_in%jed-var_in%jec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: Excessive j-direction halo size for the input structure.")
-      if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: Excessive i-direction halo size for the output structure.")
-      if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
-          & call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: Excessive j-direction halo size for the output structure.")
-
-      if ((1+var%iec-var%isc) == size(weights,1)) then
-        iow = 1 - var%isc
-      elseif ((1+var%ied-var%isd) == size(weights,1)) then
-        iow = 1 - var%isd
-      elseif ((1+var_in%ied-var_in%isd) == size(weights,1)) then
-        iow = 1 + (var_in%isc - var_in%isd) - var%isc
-      else
-        call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: weights array must be the i-size of a computational or data domain.")
-      endif
-      if ((1+var%jec-var%jsc) == size(weights,2)) then
-        jow = 1 - var%jsc
-      elseif ((1+var%jed-var%jsd) == size(weights,2)) then
-        jow = 1 - var%jsd
-      elseif ((1+var_in%jed-var_in%jsd) == size(weights,2)) then
-        jow = 1 + (var_in%jsc - var_in%jsd) - var%jsc
-      else
-        call mpp_error(FATAL, "CT_increment_data_2d_3d_r8: weights array must be the j-size of a computational or data domain.")
-      endif
-
-      io1 = var_in%isc - var%isc
-      jo1 = var_in%jsc - var%jsc
-      kow = 1 - var_in%ks
-    endif
-
-    do n = n1, n2
-      increment_bc = .true.
-      if (increment_bc .and. present(exclude_flux_type))&
-          & increment_bc = .not.(trim(var_in%bc(n)%flux_type) == trim(exclude_flux_type))
-      if (increment_bc .and. present(only_flux_type))&
-          & increment_bc = (trim(var_in%bc(n)%flux_type) == trim(only_flux_type))
-      if (increment_bc .and. present(pass_through_ice))&
-          & increment_bc = (pass_through_ice .eqv. var_in%bc(n)%pass_through_ice)
-      if (.not.increment_bc) cycle
-
-      do m = 1, var_in%bc(n)%num_fields
-        if (present(field_index)) then
-          if (m /= field_index) cycle
-        endif
         if ( associated(var%bc(n)%field(m)%values_8) ) then
           do k=var_in%ks,var_in%ke
             do j=var%jsc-halo,var%jec+halo
               do i=var%isc-halo,var%iec+halo
-                var%bc(n)%field(m)%values_8(i,j) = sc_prev * var%bc(n)%field(m)%values_8(i,j) +&
-                    & (scale * weights(i+iow,j+jow,k+kow)) * var_in%bc(n)%field(m)%values_8(i+io1,j+io1,k)
+                var%bc(n)%field(m)%values_8(i,j) = sc_prev_8 * var%bc(n)%field(m)%values_8(i,j) +&
+                    & (scale_8 * weights_8(i+iow,j+jow,k+kow)) * var_in%bc(n)%field(m)%values_8(i+io1,j+io1,k)
               enddo
             enddo
           enddo
         endif
       enddo
     enddo
-  end subroutine CT_increment_data_2d_3d_r8
+  end subroutine CT_increment_data_2d_3d
 
   !> @brief Extract a 2d field from a coupler_2d_bc_type
   !!
