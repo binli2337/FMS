@@ -281,31 +281,25 @@ module coupler_types_mod
 
   !> @brief This is the interface to write out checksums for the elements of a coupler_bc_type.
   interface coupler_type_write_chksums
-    module procedure CT_write_chksums_2d_r4, CT_write_chksums_3d_r4
-    module procedure CT_write_chksums_2d_r8, CT_write_chksums_3d_r8
+    module procedure CT_write_chksums_2d CT_write_chksums_3d
   end interface coupler_type_write_chksums
 
   !> @brief This is the interface to write out diagnostics of the arrays in a coupler_bc_type.
   interface coupler_type_send_data
-    module procedure CT_send_data_2d_r4, CT_send_data_3d_r4
-    module procedure CT_send_data_2d_r8, CT_send_data_3d_r8
+    module procedure CT_send_data_2d, CT_send_data_3d
   end interface coupler_type_send_data
 
   !> @brief This is the interface to override the values of the arrays in a coupler_bc_type.
   interface coupler_type_data_override
-    module procedure CT_data_override_2d_r4, CT_data_override_3d_r4
-    module procedure CT_data_override_2d_r8, CT_data_override_3d_r8
+    module procedure CT_data_override_2d, CT_data_override_3d
   end interface coupler_type_data_override
 
   !> @brief This is the interface to register the fields in a coupler_bc_type to be saved
   !! in restart files.
   interface coupler_type_register_restarts
-    module procedure mpp_io_CT_register_restarts_2d_r4, mpp_io_CT_register_restarts_3d_r4
-    module procedure mpp_io_CT_register_restarts_2d_r8, mpp_io_CT_register_restarts_3d_r8
-    module procedure mpp_io_CT_register_restarts_to_file_2d_r4, mpp_io_CT_register_restarts_to_file_3d_r4
-    module procedure mpp_io_CT_register_restarts_to_file_2d_r8, mpp_io_CT_register_restarts_to_file_3d_r8
-    module procedure CT_register_restarts_2d_r4, CT_register_restarts_3d_r4
-    module procedure CT_register_restarts_2d_r8, CT_register_restarts_3d_r8
+    module procedure mpp_io_CT_register_restarts_2d mpp_io_CT_register_restarts_3d
+    module procedure mpp_io_CT_register_restarts_to_file_2d, mpp_io_CT_register_restarts_to_file_3d
+    module procedure CT_register_restarts_2d, CT_register_restarts_3d
   end interface coupler_type_register_restarts
 
   !> @brief This is the interface to read in the fields in a coupler_bc_type that have
@@ -322,10 +316,8 @@ module coupler_types_mod
 
   !> @brief This is the interface to deallocate any data associated with a coupler_bc_type.
   interface coupler_type_destructor
-    module procedure CT_destructor_1d_r4, CT_destructor_2d_r4
-    module procedure CT_destructor_3d_r4
-    module procedure CT_destructor_1d_r8, CT_destructor_2d_r8
-    module procedure CT_destructor_3d_r8
+    module procedure CT_destructor_1d, CT_destructor_2d
+    module procedure CT_destructor_3d
   end interface coupler_type_destructor
 
 contains
@@ -4565,7 +4557,7 @@ contains
 
 
   !> @brief Write out all diagnostics of elements of a coupler_2d_bc_type
-  subroutine CT_send_data_2d_r4(var, Time)
+  subroutine CT_send_data_2d(var, Time)
     type(coupler_2d_bc_type), intent(in) :: var  !< BC_type structure with the diagnostics to write
     type(time_type),          intent(in) :: time !< The current model time
 
@@ -4575,30 +4567,19 @@ contains
     do n = 1, var%num_bcs
       do m = 1, var%bc(n)%num_fields
         if (var%bc(n)%field(m)%id_diag > 0) then
-          used = send_data(var%bc(n)%field(m)%id_diag, var%bc(n)%field(m)%values_4, Time)
+          if (associated(var%bc(n)%field(m)%values_4)) then
+            used = send_data(var%bc(n)%field(m)%id_diag, var%bc(n)%field(m)%values_4, Time)
+          endif
+          if (associated(var%bc(n)%field(m)%values_8)) then
+            used = send_data(var%bc(n)%field(m)%id_diag, var%bc(n)%field(m)%values_8, Time)
+          endif
         endif
       enddo
     enddo
-  end subroutine CT_send_data_2d_r4
-
-  subroutine CT_send_data_2d_r8(var, Time)
-    type(coupler_2d_bc_type), intent(in) :: var  !< BC_type structure with the diagnostics to write
-    type(time_type),          intent(in) :: time !< The current model time
-
-    integer :: m, n
-    logical :: used
-
-    do n = 1, var%num_bcs
-      do m = 1, var%bc(n)%num_fields
-        if (var%bc(n)%field(m)%id_diag > 0) then
-          used = send_data(var%bc(n)%field(m)%id_diag, var%bc(n)%field(m)%values_8, Time)
-        endif
-      enddo
-    enddo
-  end subroutine CT_send_data_2d_r8
+  end subroutine CT_send_data_2d
 
   !> @brief Write out all diagnostics of elements of a coupler_3d_bc_type
-  subroutine CT_send_data_3d_r4(var, Time)
+  subroutine CT_send_data_3d(var, Time)
     type(coupler_3d_bc_type), intent(in) :: var  !< BC_type structure with the diagnostics to write
     type(time_type),          intent(in) :: time !< The current model time
 
@@ -4608,32 +4589,21 @@ contains
     do n = 1, var%num_bcs
       do m = 1, var%bc(n)%num_fields
         if (var%bc(n)%field(m)%id_diag > 0) then
-          used = send_data(var%bc(n)%field(m)%id_diag, var%bc(n)%field(m)%values_4, Time)
+          if (associated(var%bc(n)%field(m)%values_4)) then
+            used = send_data(var%bc(n)%field(m)%id_diag, var%bc(n)%field(m)%values_4, Time)
+          endif
+          if (associated(var%bc(n)%field(m)%values_8)) then
+            used = send_data(var%bc(n)%field(m)%id_diag, var%bc(n)%field(m)%values_8, Time)
+          endif
         endif
       enddo
     enddo
-  end subroutine CT_send_data_3d_r4
-
-  subroutine CT_send_data_3d_r8(var, Time)
-    type(coupler_3d_bc_type), intent(in) :: var  !< BC_type structure with the diagnostics to write
-    type(time_type),          intent(in) :: time !< The current model time
-
-    integer :: m, n
-    logical :: used
-
-    do n = 1, var%num_bcs
-      do m = 1, var%bc(n)%num_fields
-        if (var%bc(n)%field(m)%id_diag > 0) then
-          used = send_data(var%bc(n)%field(m)%id_diag, var%bc(n)%field(m)%values_8, Time)
-        endif
-      enddo
-    enddo
-  end subroutine CT_send_data_3d_r8
+  end subroutine CT_send_data_3d
 
   !! @brief Register the fields in a coupler_2d_bc_type to be saved in restart files
   !! This subroutine registers the fields in a coupler_2d_bc_type to be saved in restart files
   !! specified in the field table.
-  subroutine CT_register_restarts_2d_r4(var, bc_rest_files, num_rest_files, mpp_domain, to_read, ocean_restart, directory)
+  subroutine CT_register_restarts_2d(var, bc_rest_files, num_rest_files, mpp_domain, to_read, ocean_restart, directory)
     type(coupler_2d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
     type(FmsNetcdfDomainFile_t),  dimension(:), pointer  :: bc_rest_files !< Structures describing the restart files
     integer,                  intent(out) :: num_rest_files !< The number of restart files to use
@@ -4719,113 +4689,23 @@ contains
                 dim_names(3) = "Time"
             endif !< to_read
 
-            call register_restart_field(bc_rest_files(f),&
-            & var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_4, dim_names, &
-            & is_optional=var%bc(n)%field(m)%may_init )
+            if (associated(var%bc(n)%field(m)%values_4)) then
+              call register_restart_field(bc_rest_files(f),&
+              & var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_4, dim_names, &
+              & is_optional=var%bc(n)%field(m)%may_init )
+            endif
+            if (associated(var%bc(n)%field(m)%values_8)) then
+              call register_restart_field(bc_rest_files(f),&
+              & var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_8, dim_names, &
+              & is_optional=var%bc(n)%field(m)%may_init )
+            endif
 
             deallocate(dim_names)
          endif !< If file_is_open
       enddo !< num_fields
     enddo !< num_bcs
 
-  end subroutine CT_register_restarts_2d_r4
-
-  subroutine CT_register_restarts_2d_r8(var, bc_rest_files, num_rest_files, mpp_domain, to_read, ocean_restart, directory)
-    type(coupler_2d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
-    type(FmsNetcdfDomainFile_t),  dimension(:), pointer  :: bc_rest_files !< Structures describing the restart files
-    integer,                  intent(out) :: num_rest_files !< The number of restart files to use
-    type(domain2D),           intent(in)  :: mpp_domain     !< The FMS domain to use for this registration call
-    logical,                  intent(in)  :: to_read        !< Flag indicating if reading/writing a file
-    logical,         optional,intent(in)  :: ocean_restart  !< If true, use the ocean restart file name.
-    character(len=*),optional,intent(in)  :: directory      !< Directory where to open the file
-
-    character(len=80), dimension(max(1,var%num_bcs)) :: rest_file_names
-    character(len=80) :: file_nm
-    logical :: ocn_rest
-    integer :: f, n, m
-
-    character(len=20), allocatable, dimension(:)             :: dim_names !< Array of dimension names
-    character(len=20)                          :: io_type   !< flag indicating io type: "read" "overwrite"
-    logical, dimension(max(1,var%num_bcs))     :: file_is_open !< flag indicating if file is open
-    character(len=20)                          :: dir       !< Directory where to open the file
-
-    ocn_rest = .true.
-    if (present(ocean_restart)) ocn_rest = ocean_restart
-
-    if (present(directory)) dir = trim(directory)
-
-    if (to_read) then
-        io_type = "read"
-        if (.not. present(directory)) dir = "INPUT/"
-    else
-        io_type = "overwrite"
-        if (.not. present(directory)) dir = "RESTART/"
-    endif
-
-    ! Determine the number and names of the restart files
-    num_rest_files = 0
-    do n = 1, var%num_bcs
-      if (var%bc(n)%num_fields <= 0) cycle
-      file_nm = trim(var%bc(n)%ice_restart_file)
-      if (ocn_rest) file_nm = trim(var%bc(n)%ocean_restart_file)
-      do f = 1, num_rest_files
-        if (trim(file_nm) == trim(rest_file_names(f))) exit
-      enddo
-      if (f>num_rest_files) then
-        num_rest_files = num_rest_files + 1
-        rest_file_names(f) = trim(file_nm)
-      endif
-    enddo
-
-    if (num_rest_files == 0) return
-
-    allocate(bc_rest_files(num_rest_files))
-
-    !< Open the files
-    do n = 1, num_rest_files
-        file_is_open(n) = open_file(bc_rest_files(n), trim(dir)//rest_file_names(n), io_type, mpp_domain, is_restart=.true.)
-        if (file_is_open(n)) then
-             call register_axis_wrapper(bc_rest_files(n), to_read=to_read)
-        endif
-    enddo
-
-    ! Register the fields with the restart files
-    do n = 1, var%num_bcs
-      if (var%bc(n)%num_fields <= 0) cycle
-
-      file_nm = trim(var%bc(n)%ice_restart_file)
-      if (ocn_rest) file_nm = trim(var%bc(n)%ocean_restart_file)
-      do f = 1, num_rest_files
-        if (trim(file_nm) == trim(rest_file_names(f))) exit
-      enddo
-
-      var%bc(n)%fms2_io_rest_type => bc_rest_files(f)
-
-      do m = 1, var%bc(n)%num_fields
-         if (file_is_open(f)) then
-            if( to_read .and. variable_exists(bc_rest_files(f), var%bc(n)%field(m)%name)) then
-                !< If reading get the dimension names from the file
-                allocate(dim_names(get_variable_num_dimensions(bc_rest_files(f), var%bc(n)%field(m)%name)))
-                call get_variable_dimension_names(bc_rest_files(f), &
-                & var%bc(n)%field(m)%name, dim_names)
-            else
-                !< If writing use dummy dimension names
-                allocate(dim_names(3))
-                dim_names(1) = "xaxis_1"
-                dim_names(2) = "yaxis_1"
-                dim_names(3) = "Time"
-            endif !< to_read
-
-            call register_restart_field(bc_rest_files(f),&
-            & var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_8, dim_names, &
-            & is_optional=var%bc(n)%field(m)%may_init )
-
-            deallocate(dim_names)
-         endif !< If file_is_open
-      enddo !< num_fields
-    enddo !< num_bcs
-
-  end subroutine CT_register_restarts_2d_r8
+  end subroutine CT_register_restarts_2d
 
   !< If reading a restart, register the dimensions that are in the file
   subroutine register_axis_wrapper_read(fileobj)
@@ -4931,7 +4811,7 @@ contains
   !!
   !! This subroutine registers the fields in a coupler_2d_bc_type to be saved in restart files
   !! specified in the field table.
-  subroutine mpp_io_CT_register_restarts_2d_r4(var, bc_rest_files, num_rest_files, mpp_domain, ocean_restart)
+  subroutine mpp_io_CT_register_restarts_2d(var, bc_rest_files, num_rest_files, mpp_domain, ocean_restart)
     type(coupler_2d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
     type(restart_file_type),  dimension(:), pointer :: bc_rest_files !< Structures describing the restart files
     integer,                  intent(out) :: num_rest_files !< The number of restart files to use
@@ -4976,70 +4856,25 @@ contains
 
       var%bc(n)%rest_type => bc_rest_files(f)
       do m = 1, var%bc(n)%num_fields
-        var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(bc_rest_files(f),&
+        if (associated(var%bc(n)%field(m)%values_4)) then
+          var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(bc_rest_files(f),&
             & rest_file_names(f), var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_4,&
             & mpp_domain, mandatory=.not.var%bc(n)%field(m)%may_init )
-      enddo
-    enddo
-  end subroutine mpp_io_CT_register_restarts_2d_r4
-
-  subroutine mpp_io_CT_register_restarts_2d_r8(var, bc_rest_files, num_rest_files, mpp_domain, ocean_restart)
-    type(coupler_2d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
-    type(restart_file_type),  dimension(:), pointer :: bc_rest_files !< Structures describing the restart files
-    integer,                  intent(out) :: num_rest_files !< The number of restart files to use
-    type(domain2D),           intent(in)  :: mpp_domain     !< The FMS domain to use for this registration call
-    logical,        optional, intent(in)  :: ocean_restart  !< If true, use the ocean restart file name.
-
-    character(len=80), dimension(max(1,var%num_bcs)) :: rest_file_names
-    character(len=80) :: file_nm
-    logical :: ocn_rest
-    integer :: f, n, m
-
-    ocn_rest = .true.
-    if (present(ocean_restart)) ocn_rest = ocean_restart
-
-    ! Determine the number and names of the restart files
-    num_rest_files = 0
-    do n = 1, var%num_bcs
-      if (var%bc(n)%num_fields <= 0) cycle
-      file_nm = trim(var%bc(n)%ice_restart_file)
-      if (ocn_rest) file_nm = trim(var%bc(n)%ocean_restart_file)
-      do f = 1, num_rest_files
-        if (trim(file_nm) == trim(rest_file_names(f))) exit
-      enddo
-      if (f>num_rest_files) then
-        num_rest_files = num_rest_files + 1
-        rest_file_names(f) = trim(file_nm)
-      endif
-    enddo
-
-    if (num_rest_files == 0) return
-
-    ! Register the fields with the restart files
-    allocate(bc_rest_files(num_rest_files))
-    do n = 1, var%num_bcs
-      if (var%bc(n)%num_fields <= 0) cycle
-
-      file_nm = trim(var%bc(n)%ice_restart_file)
-      if (ocn_rest) file_nm = trim(var%bc(n)%ocean_restart_file)
-      do f = 1, num_rest_files
-        if (trim(file_nm) == trim(rest_file_names(f))) exit
-      enddo
-
-      var%bc(n)%rest_type => bc_rest_files(f)
-      do m = 1, var%bc(n)%num_fields
-        var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(bc_rest_files(f),&
+        endif
+        if (associated(var%bc(n)%field(m)%values_8)) then
+          var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(bc_rest_files(f),&
             & rest_file_names(f), var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_8,&
             & mpp_domain, mandatory=.not.var%bc(n)%field(m)%may_init )
+        endif
       enddo
     enddo
-  end subroutine mpp_io_CT_register_restarts_2d_r8
+  end subroutine mpp_io_CT_register_restarts_2d
 
   !! @brief Register the fields in a coupler_2d_bc_type to be saved to restart files
   !!
   !! This subroutine  registers the  fields in  a coupler_2d_bc_type  to be  saved in  the specified
   !! restart file.
-  subroutine mpp_io_CT_register_restarts_to_file_2d_r4(var, file_name, rest_file, mpp_domain, varname_prefix)
+  subroutine mpp_io_CT_register_restarts_to_file_2d(var, file_name, rest_file, mpp_domain, varname_prefix)
     type(coupler_2d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
     character(len=*),         intent(in)    :: file_name !< The name of the restart file
     type(restart_file_type),  pointer       :: rest_file !< A (possibly associated) structure describing the restart file
@@ -5061,46 +4896,24 @@ contains
       do m = 1, var%bc(n)%num_fields
         var_name = trim(var%bc(n)%field(m)%name)
         if (present(varname_prefix)) var_name = trim(varname_prefix)//trim(var_name)
-        var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(rest_file,&
+          if (associated(var%bc(n)%field(m)%values_4)) then
+            var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(rest_file,&
             & file_name, var_name, var%bc(n)%field(m)%values_4,&
             & mpp_domain, mandatory=.not.var%bc(n)%field(m)%may_init )
-      enddo
-    enddo
-  end subroutine mpp_io_CT_register_restarts_to_file_2d_r4
-
-  subroutine mpp_io_CT_register_restarts_to_file_2d_r8(var, file_name, rest_file, mpp_domain, varname_prefix)
-    type(coupler_2d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
-    character(len=*),         intent(in)    :: file_name !< The name of the restart file
-    type(restart_file_type),  pointer       :: rest_file !< A (possibly associated) structure describing the restart file
-    type(domain2D),           intent(in)    :: mpp_domain !< The FMS domain to use for this registration call
-    character(len=*), optional, intent(in)  :: varname_prefix !< A prefix for the variable name
-                                                         !! in the restart file, intended to allow
-                                                         !! multiple BC_type variables to use the
-                                                         !! same restart files.
-
-    character(len=128) :: var_name
-    integer :: n, m
-
-    ! Register the fields with the restart file
-    if (.not.associated(rest_file)) allocate(rest_file)
-    do n = 1, var%num_bcs
-      if (var%bc(n)%num_fields <= 0) cycle
-
-      var%bc(n)%rest_type => rest_file
-      do m = 1, var%bc(n)%num_fields
-        var_name = trim(var%bc(n)%field(m)%name)
-        if (present(varname_prefix)) var_name = trim(varname_prefix)//trim(var_name)
-        var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(rest_file,&
+          endif
+          if (associated(var%bc(n)%field(m)%values_8)) then
+            var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(rest_file,&
             & file_name, var_name, var%bc(n)%field(m)%values_8,&
             & mpp_domain, mandatory=.not.var%bc(n)%field(m)%may_init )
+          endif
       enddo
     enddo
-  end subroutine mpp_io_CT_register_restarts_to_file_2d_r8
+  end subroutine mpp_io_CT_register_restarts_to_file_2d
 
   !! @brief Register the fields in a coupler_3d_bc_type to be saved in restart files
   !! This subroutine registers the fields in a coupler_2d_bc_type to be saved in restart files
   !! specified in the field table.
-  subroutine CT_register_restarts_3d_r4(var, bc_rest_files, num_rest_files, mpp_domain, to_read, ocean_restart, directory)
+  subroutine CT_register_restarts_3d(var, bc_rest_files, num_rest_files, mpp_domain, to_read, ocean_restart, directory)
     type(coupler_3d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
     type(FmsNetcdfDomainFile_t),  dimension(:), pointer  :: bc_rest_files !< Structures describing the restart files
     integer,                  intent(out) :: num_rest_files !< The number of restart files to use
@@ -5194,125 +5007,28 @@ contains
                 dim_names(4) = "Time"
             endif !< to_read
 
-            call register_restart_field(bc_rest_files(f),&
+            if (associated(var%bc(n)%field(m)%values_4)) then
+              call register_restart_field(bc_rest_files(f),&
                  & var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_4, dim_names, &
                  & is_optional=var%bc(n)%field(m)%may_init )
-            deallocate(dim_names)
-         endif !< If file_is_open
-      enddo !< num_fields
-    enddo !< num_bcs
-
-  end subroutine CT_register_restarts_3d_r4
-
-  subroutine CT_register_restarts_3d_r8(var, bc_rest_files, num_rest_files, mpp_domain, to_read, ocean_restart, directory)
-    type(coupler_3d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
-    type(FmsNetcdfDomainFile_t),  dimension(:), pointer  :: bc_rest_files !< Structures describing the restart files
-    integer,                  intent(out) :: num_rest_files !< The number of restart files to use
-    type(domain2D),           intent(in)  :: mpp_domain     !< The FMS domain to use for this registration call
-    logical,                  intent(in)  :: to_read        !< Flag indicating if reading/writing a file
-    logical,         optional,intent(in)  :: ocean_restart  !< If true, use the ocean restart file name.
-    character(len=*),optional,intent(in)  :: directory      !< Directory where to open the file
-
-    character(len=80), dimension(max(1,var%num_bcs)) :: rest_file_names
-    character(len=80) :: file_nm
-    logical :: ocn_rest
-    integer :: f, n, m
-
-    character(len=20), allocatable, dimension(:) :: dim_names !< Array of dimension names
-    character(len=20)                          :: io_type   !< flag indicating io type: "read" "overwrite"
-    logical, dimension(max(1,var%num_bcs))     :: file_is_open !< Flag indicating if file is open
-    character(len=20)                          :: dir       !< Directory where to open the file
-    integer                                    :: nz        !< Length of the z direction of each file
-
-    ocn_rest = .true.
-    if (present(ocean_restart)) ocn_rest = ocean_restart
-
-    if (present(directory)) dir = trim(directory)
-
-    if (to_read) then
-        io_type = "read"
-        if (.not. present(directory)) dir = "INPUT/"
-    else
-        io_type = "overwrite"
-        if (.not. present(directory)) dir = "RESTART/"
-    endif
-
-    nz = var%ke - var%ks + 1 !< NOTE: This assumes that the z dimension is the same for every variable
-    ! Determine the number and names of the restart files
-    num_rest_files = 0
-    do n = 1, var%num_bcs
-      if (var%bc(n)%num_fields <= 0) cycle
-      file_nm = trim(var%bc(n)%ice_restart_file)
-      if (ocn_rest) file_nm = trim(var%bc(n)%ocean_restart_file)
-      do f = 1, num_rest_files
-        if (trim(file_nm) == trim(rest_file_names(f))) exit
-      enddo
-      if (f>num_rest_files) then
-        num_rest_files = num_rest_files + 1
-        rest_file_names(f) = trim(file_nm)
-      endif
-    enddo
-
-    if (num_rest_files == 0) return
-
-    allocate(bc_rest_files(num_rest_files))
-
-    !< Open the files
-    do n = 1, num_rest_files
-        file_is_open(n) = open_file(bc_rest_files(n), trim(dir)//rest_file_names(n), io_type, mpp_domain, is_restart=.true.)
-        if (file_is_open(n)) then
-
-             if (to_read) then
-                call register_axis_wrapper(bc_rest_files(n), to_read=to_read)
-             else
-                call register_axis_wrapper(bc_rest_files(n), to_read=to_read, nz=nz)
-             endif
-        endif
-    enddo
-
-    ! Register the fields with the restart files
-    do n = 1, var%num_bcs
-      if (var%bc(n)%num_fields <= 0) cycle
-
-      file_nm = trim(var%bc(n)%ice_restart_file)
-      if (ocn_rest) file_nm = trim(var%bc(n)%ocean_restart_file)
-      do f = 1, num_rest_files
-        if (trim(file_nm) == trim(rest_file_names(f))) exit
-      enddo
-
-      var%bc(n)%fms2_io_rest_type => bc_rest_files(f)
-
-      do m = 1, var%bc(n)%num_fields
-         if (file_is_open(f)) then
-            if( to_read .and. variable_exists(bc_rest_files(f), var%bc(n)%field(m)%name)) then
-                !< If reading get the dimension names from the file
-                allocate(dim_names(get_variable_num_dimensions(bc_rest_files(f), var%bc(n)%field(m)%name)))
-                call get_variable_dimension_names(bc_rest_files(f), &
-                & var%bc(n)%field(m)%name, dim_names)
-            else
-                !< If writing use dummy dimension names
-                allocate(dim_names(4))
-                dim_names(1) = "xaxis_1"
-                dim_names(2) = "yaxis_1"
-                dim_names(3) = "zaxis_1"
-                dim_names(4) = "Time"
-            endif !< to_read
-
-            call register_restart_field(bc_rest_files(f),&
+            endif
+            if (associated(var%bc(n)%field(m)%values_8)) then
+              call register_restart_field(bc_rest_files(f),&
                  & var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_8, dim_names, &
                  & is_optional=var%bc(n)%field(m)%may_init )
+            endif
             deallocate(dim_names)
          endif !< If file_is_open
       enddo !< num_fields
     enddo !< num_bcs
 
-  end subroutine CT_register_restarts_3d_r8
+  end subroutine CT_register_restarts_3d
 
   !! @brief Register the fields in a coupler_3d_bc_type to be saved to restart files
   !!
   !! This subroutine registers the fields in a coupler_3d_bc_type to be saved in restart files
   !! specified in the field table.
-  subroutine mpp_io_CT_register_restarts_3d_r4(var, bc_rest_files, num_rest_files, mpp_domain, ocean_restart)
+  subroutine mpp_io_CT_register_restarts_3d(var, bc_rest_files, num_rest_files, mpp_domain, ocean_restart)
     type(coupler_3d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
     type(restart_file_type),  dimension(:), pointer :: bc_rest_files !< Structures describing the restart files
     integer,                  intent(out)   :: num_rest_files !< The number of restart files to use
@@ -5356,68 +5072,24 @@ contains
 
       var%bc(n)%rest_type => bc_rest_files(f)
       do m = 1, var%bc(n)%num_fields
-        var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(bc_rest_files(f),&
+        if (associated(var%bc(n)%field(m)%values_4)) then
+          var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(bc_rest_files(f),&
             & rest_file_names(f), var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_4,&
             & mpp_domain, mandatory=.not.var%bc(n)%field(m)%may_init )
-      enddo
-    enddo
-  end subroutine mpp_io_CT_register_restarts_3d_r4
-
-  subroutine mpp_io_CT_register_restarts_3d_r8(var, bc_rest_files, num_rest_files, mpp_domain, ocean_restart)
-    type(coupler_3d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
-    type(restart_file_type),  dimension(:), pointer :: bc_rest_files !< Structures describing the restart files
-    integer,                  intent(out)   :: num_rest_files !< The number of restart files to use
-    type(domain2D),           intent(in)    :: mpp_domain     !< The FMS domain to use for this registration call
-    logical,        optional, intent(in)    :: ocean_restart  !< If true, use the ocean restart file name.
-
-    character(len=80), dimension(max(1,var%num_bcs)) :: rest_file_names
-    character(len=80) :: file_nm
-    logical :: ocn_rest
-    integer :: f, n, m, id_restart
-
-    ocn_rest = .true.
-    if (present(ocean_restart)) ocn_rest = ocean_restart
-
-    ! Determine the number and names of the restart files
-    num_rest_files = 0
-    do n = 1, var%num_bcs
-      if (var%bc(n)%num_fields <= 0) cycle
-      file_nm = trim(var%bc(n)%ice_restart_file)
-      if (ocn_rest) file_nm = trim(var%bc(n)%ocean_restart_file)
-      do f = 1, num_rest_files
-        if (trim(file_nm) == trim(rest_file_names(f))) exit
-      enddo
-      if (f>num_rest_files) then
-        num_rest_files = num_rest_files + 1
-        rest_file_names(f) = trim(file_nm)
-      endif
-    enddo
-
-    if (num_rest_files == 0) return
-
-    ! Register the fields with the restart files
-    allocate(bc_rest_files(num_rest_files))
-    do n = 1, var%num_bcs
-      if (var%bc(n)%num_fields <= 0) cycle
-      file_nm = trim(var%bc(n)%ice_restart_file)
-      if (ocn_rest) file_nm = trim(var%bc(n)%ocean_restart_file)
-      do f = 1, num_rest_files
-        if (trim(file_nm) == trim(rest_file_names(f))) exit
-      enddo
-
-      var%bc(n)%rest_type => bc_rest_files(f)
-      do m = 1, var%bc(n)%num_fields
-        var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(bc_rest_files(f),&
+        endif
+        if (associated(var%bc(n)%field(m)%values_8)) then
+          var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(bc_rest_files(f),&
             & rest_file_names(f), var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_8,&
             & mpp_domain, mandatory=.not.var%bc(n)%field(m)%may_init )
+        endif
       enddo
     enddo
-  end subroutine mpp_io_CT_register_restarts_3d_r8
+  end subroutine mpp_io_CT_register_restarts_3d
 
   !> @brief Register the fields in a coupler_3d_bc_type to be saved to restart files
   !!
   !! Registers the fields in a coupler_3d_bc_type to be saved in the specified restart file.
-  subroutine mpp_io_CT_register_restarts_to_file_3d_r4(var, file_name, rest_file, mpp_domain, varname_prefix)
+  subroutine mpp_io_CT_register_restarts_to_file_3d(var, file_name, rest_file, mpp_domain, varname_prefix)
     type(coupler_3d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
     character(len=*),         intent(in)  :: file_name !< The name of the restart file
     type(restart_file_type),  pointer     :: rest_file !< A (possibly associated) structure describing the restart file
@@ -5439,41 +5111,19 @@ contains
       do m = 1, var%bc(n)%num_fields
         var_name = trim(var%bc(n)%field(m)%name)
         if (present(varname_prefix)) var_name = trim(varname_prefix)//trim(var_name)
-        var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(rest_file,&
+          if (associated(var%bc(n)%field(m)%values_4)) then
+            var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(rest_file,&
             & file_name, var_name, var%bc(n)%field(m)%values_4,&
             & mpp_domain, mandatory=.not.var%bc(n)%field(m)%may_init )
-      enddo
-    enddo
-  end subroutine mpp_io_CT_register_restarts_to_file_3d_r4
-
-  subroutine mpp_io_CT_register_restarts_to_file_3d_r8(var, file_name, rest_file, mpp_domain, varname_prefix)
-    type(coupler_3d_bc_type), intent(inout) :: var  !< BC_type structure to be registered for restarts
-    character(len=*),         intent(in)  :: file_name !< The name of the restart file
-    type(restart_file_type),  pointer     :: rest_file !< A (possibly associated) structure describing the restart file
-    type(domain2D),           intent(in)  :: mpp_domain !< The FMS domain to use for this registration call
-    character(len=*), optional, intent(in)  :: varname_prefix !< A prefix for the variable name
-                                                    !! in the restart file, intended to allow
-                                                    !! multiple BC_type variables to use the
-                                                    !! same restart files.
-
-    character(len=128) :: var_name
-    integer :: n, m
-
-    ! Register the fields with the restart file
-    if (.not.associated(rest_file)) allocate(rest_file)
-    do n = 1, var%num_bcs
-      if (var%bc(n)%num_fields <= 0) cycle
-
-      var%bc(n)%rest_type => rest_file
-      do m = 1, var%bc(n)%num_fields
-        var_name = trim(var%bc(n)%field(m)%name)
-        if (present(varname_prefix)) var_name = trim(varname_prefix)//trim(var_name)
-        var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(rest_file,&
+          endif
+          if (associated(var%bc(n)%field(m)%values_8)) then
+            var%bc(n)%field(m)%id_rest = fms_io_register_restart_field(rest_file,&
             & file_name, var_name, var%bc(n)%field(m)%values_8,&
             & mpp_domain, mandatory=.not.var%bc(n)%field(m)%may_init )
+          endif
       enddo
     enddo
-  end subroutine mpp_io_CT_register_restarts_to_file_3d_r8
+  end subroutine mpp_io_CT_register_restarts_to_file_3d
 
   subroutine CT_restore_state_2d(var, use_fms2_io, directory, all_or_nothing, all_required, test_by_field)
     type(coupler_2d_bc_type), intent(inout) :: var  !< BC_type structure to restore from restart files
@@ -5747,7 +5397,7 @@ contains
 
 
   !> @brief Potentially override the values in a coupler_2d_bc_type
-  subroutine CT_data_override_2d_r4(gridname, var, Time)
+  subroutine CT_data_override_2d(gridname, var, Time)
     character(len=3),         intent(in)    :: gridname !< 3-character long model grid ID
     type(coupler_2d_bc_type), intent(inout) :: var  !< BC_type structure to override
     type(time_type),          intent(in)    :: time !< The current model time
@@ -5756,27 +5406,18 @@ contains
 
     do n = 1, var%num_bcs
       do m = 1, var%bc(n)%num_fields
-        call data_override(gridname, var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_4, Time)
+        if (associated(var%bc(n)%field(m)%values_4)) then
+          call data_override(gridname, var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_4, Time)
+        endif
+        if (associated(var%bc(n)%field(m)%values_8)) then
+          call data_override(gridname, var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_8, Time)
+        endif
       enddo
     enddo
-  end subroutine CT_data_override_2d_r4
-
-  subroutine CT_data_override_2d_r8(gridname, var, Time)
-    character(len=3),         intent(in)    :: gridname !< 3-character long model grid ID
-    type(coupler_2d_bc_type), intent(inout) :: var  !< BC_type structure to override
-    type(time_type),          intent(in)    :: time !< The current model time
-
-    integer :: m, n
-
-    do n = 1, var%num_bcs
-      do m = 1, var%bc(n)%num_fields
-        call data_override(gridname, var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_8, Time)
-      enddo
-    enddo
-  end subroutine CT_data_override_2d_r8
+  end subroutine CT_data_override_2d
 
   !> @brief Potentially override the values in a coupler_3d_bc_type
-  subroutine CT_data_override_3d_r4(gridname, var, Time)
+  subroutine CT_data_override_3d(gridname, var, Time)
     character(len=3),         intent(in)    :: gridname !< 3-character long model grid ID
     type(coupler_3d_bc_type), intent(inout) :: var  !< BC_type structure to override
     type(time_type),          intent(in)    :: time !< The current model time
@@ -5785,28 +5426,18 @@ contains
 
     do n = 1, var%num_bcs
       do m = 1, var%bc(n)%num_fields
-        call data_override(gridname, var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_4, Time)
+        if (associated(var%bc(n)%field(m)%values_4)) then
+          call data_override(gridname, var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_4, Time)
+        endif
+        if (associated(var%bc(n)%field(m)%values_8)) then
+          call data_override(gridname, var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_8, Time)
+        endif
       enddo
     enddo
-  end subroutine CT_data_override_3d_r4
-
-  subroutine CT_data_override_3d_r8(gridname, var, Time)
-    character(len=3),         intent(in)    :: gridname !< 3-character long model grid ID
-    type(coupler_3d_bc_type), intent(inout) :: var  !< BC_type structure to override
-    type(time_type),          intent(in)    :: time !< The current model time
-
-    integer :: m, n
-
-    do n = 1, var%num_bcs
-      do m = 1, var%bc(n)%num_fields
-        call data_override(gridname, var%bc(n)%field(m)%name, var%bc(n)%field(m)%values_8, Time)
-      enddo
-    enddo
-  end subroutine CT_data_override_3d_r8
-
+  end subroutine CT_data_override_3d
 
   !> @brief Write out checksums for the elements of a coupler_2d_bc_type
-  subroutine CT_write_chksums_2d_r4(var, outunit, name_lead)
+  subroutine CT_write_chksums_2d(var, outunit, name_lead)
     type(coupler_2d_bc_type),   intent(in) :: var  !< BC_type structure for which to register diagnostics
     integer,                    intent(in) :: outunit !< The index of a open output file
     character(len=*), optional, intent(in) :: name_lead !< An optional prefix for the variable names
@@ -5821,35 +5452,20 @@ contains
         else
           var_name = trim(var%bc(n)%field(m)%name)
         endif
-        write(outunit, '("   CHECKSUM:: ",A40," = ",Z20)') trim(var_name),&
+        if (associated(var%bc(n)%field(m)%values_4)) then
+          write(outunit, '("   CHECKSUM:: ",A40," = ",Z20)') trim(var_name),&
             & mpp_chksum(var%bc(n)%field(m)%values_4(var%isc:var%iec,var%jsc:var%jec) )
-      enddo
-    enddo
-  end subroutine CT_write_chksums_2d_r4
-
-  subroutine CT_write_chksums_2d_r8(var, outunit, name_lead)
-    type(coupler_2d_bc_type),   intent(in) :: var  !< BC_type structure for which to register diagnostics
-    integer,                    intent(in) :: outunit !< The index of a open output file
-    character(len=*), optional, intent(in) :: name_lead !< An optional prefix for the variable names
-
-    character(len=120) :: var_name
-    integer :: m, n
-
-    do n = 1, var%num_bcs
-      do m = 1, var%bc(n)%num_fields
-        if (present(name_lead)) then
-          var_name = trim(name_lead)//trim(var%bc(n)%field(m)%name)
-        else
-          var_name = trim(var%bc(n)%field(m)%name)
         endif
-        write(outunit, '("   CHECKSUM:: ",A40," = ",Z20)') trim(var_name),&
+        if (associated(var%bc(n)%field(m)%values_8)) then
+          write(outunit, '("   CHECKSUM:: ",A40," = ",Z20)') trim(var_name),&
             & mpp_chksum(var%bc(n)%field(m)%values_8(var%isc:var%iec,var%jsc:var%jec) )
+        endif
       enddo
     enddo
-  end subroutine CT_write_chksums_2d_r8
+  end subroutine CT_write_chksums_2d
 
   !> @brief Write out checksums for the elements of a coupler_3d_bc_type
-  subroutine CT_write_chksums_3d_r4(var, outunit, name_lead)
+  subroutine CT_write_chksums_3d(var, outunit, name_lead)
     type(coupler_3d_bc_type),   intent(in) :: var  !< BC_type structure for which to register diagnostics
     integer,                    intent(in) :: outunit !< The index of a open output file
     character(len=*), optional, intent(in) :: name_lead !< An optional prefix for the variable names
@@ -5864,33 +5480,17 @@ contains
         else
           var_name = trim(var%bc(n)%field(m)%name)
         endif
-        write(outunit, '("   CHECKSUM:: ",A40," = ",Z20)') var_name,&
+        if (associated(var%bc(n)%field(m)%values_4)) then
+          write(outunit, '("   CHECKSUM:: ",A40," = ",Z20)') var_name,&
             & mpp_chksum(var%bc(n)%field(m)%values_4(var%isc:var%iec,var%jsc:var%jec,:) )
-      enddo
-    enddo
-  end subroutine CT_write_chksums_3d_r4
-
-  subroutine CT_write_chksums_3d_r8(var, outunit, name_lead)
-    type(coupler_3d_bc_type),   intent(in) :: var  !< BC_type structure for which to register diagnostics
-    integer,                    intent(in) :: outunit !< The index of a open output file
-    character(len=*), optional, intent(in) :: name_lead !< An optional prefix for the variable names
-
-    character(len=120) :: var_name
-    integer :: m, n
-
-    do n = 1, var%num_bcs
-      do m = 1, var%bc(n)%num_fields
-        if (present(name_lead)) then
-          var_name = trim(name_lead)//trim(var%bc(n)%field(m)%name)
-        else
-          var_name = trim(var%bc(n)%field(m)%name)
         endif
-        write(outunit, '("   CHECKSUM:: ",A40," = ",Z20)') var_name,&
+        if (associated(var%bc(n)%field(m)%values_8)) then
+          write(outunit, '("   CHECKSUM:: ",A40," = ",Z20)') var_name,&
             & mpp_chksum(var%bc(n)%field(m)%values_8(var%isc:var%iec,var%jsc:var%jec,:) )
+        endif
       enddo
     enddo
-  end subroutine CT_write_chksums_3d_r8
-
+  end subroutine CT_write_chksums_3d
 
   !> @brief Indicate whether a coupler_1d_bc_type has been initialized.
   !! @return Logical
@@ -5917,7 +5517,7 @@ contains
   end function CT_initialized_3d
 
   !> @brief Deallocate all data associated with a coupler_1d_bc_type
-  subroutine CT_destructor_1d_r4(var)
+  subroutine CT_destructor_1d(var)
     type(coupler_1d_bc_type), intent(inout) :: var  !< BC_type structure to be deconstructed
 
     integer :: m, n
@@ -5925,7 +5525,12 @@ contains
     if (var%num_bcs > 0) then
       do n = 1, var%num_bcs
         do m = 1, var%bc(n)%num_fields
-          deallocate ( var%bc(n)%field(m)%values_4 )
+          if (associated(var%bc(n)%field(m)%values_4)) then
+            deallocate ( var%bc(n)%field(m)%values_4 )
+          endif
+          if (associated(var%bc(n)%field(m)%values_8)) then
+            deallocate ( var%bc(n)%field(m)%values_8 )
+          endif
         enddo
         deallocate ( var%bc(n)%field )
       enddo
@@ -5934,29 +5539,10 @@ contains
 
     var%num_bcs = 0
     var%set = .false.
-  end subroutine CT_destructor_1d_r4
-
-  subroutine CT_destructor_1d_r8(var)
-    type(coupler_1d_bc_type), intent(inout) :: var  !< BC_type structure to be deconstructed
-
-    integer :: m, n
-
-    if (var%num_bcs > 0) then
-      do n = 1, var%num_bcs
-        do m = 1, var%bc(n)%num_fields
-          deallocate ( var%bc(n)%field(m)%values_8 )
-        enddo
-        deallocate ( var%bc(n)%field )
-      enddo
-      deallocate ( var%bc )
-    endif
-
-    var%num_bcs = 0
-    var%set = .false.
-  end subroutine CT_destructor_1d_r8
+  end subroutine CT_destructor_1d
 
   !> @brief Deallocate all data associated with a coupler_2d_bc_type
-  subroutine CT_destructor_2d_r4(var)
+  subroutine CT_destructor_2d(var)
     type(coupler_2d_bc_type), intent(inout) :: var  !< BC_type structure to be deconstructed
 
     integer :: m, n
@@ -5964,7 +5550,12 @@ contains
     if (var%num_bcs > 0) then
       do n = 1, var%num_bcs
         do m = 1, var%bc(n)%num_fields
-          deallocate ( var%bc(n)%field(m)%values_4 )
+          if (associated(var%bc(n)%field(m)%values_4)) then
+            deallocate ( var%bc(n)%field(m)%values_4 )
+          endif
+          if (associated(var%bc(n)%field(m)%values_8)) then
+            deallocate ( var%bc(n)%field(m)%values_8 )
+          endif
         enddo
         deallocate ( var%bc(n)%field )
       enddo
@@ -5973,29 +5564,10 @@ contains
 
     var%num_bcs = 0
     var%set = .false.
-  end subroutine CT_destructor_2d_r4
-
-  subroutine CT_destructor_2d_r8(var)
-    type(coupler_2d_bc_type), intent(inout) :: var  !< BC_type structure to be deconstructed
-
-    integer :: m, n
-
-    if (var%num_bcs > 0) then
-      do n = 1, var%num_bcs
-        do m = 1, var%bc(n)%num_fields
-          deallocate ( var%bc(n)%field(m)%values_8 )
-        enddo
-        deallocate ( var%bc(n)%field )
-      enddo
-      deallocate ( var%bc )
-    endif
-
-    var%num_bcs = 0
-    var%set = .false.
-  end subroutine CT_destructor_2d_r8
+  end subroutine CT_destructor_2d
 
   !> @brief Deallocate all data associated with a coupler_3d_bc_type
-  subroutine CT_destructor_3d_r4(var)
+  subroutine CT_destructor_3d(var)
     type(coupler_3d_bc_type), intent(inout) :: var  !< BC_type structure to be deconstructed
 
     integer :: m, n
@@ -6003,7 +5575,12 @@ contains
     if (var%num_bcs > 0) then
       do n = 1, var%num_bcs
         do m = 1, var%bc(n)%num_fields
-          deallocate ( var%bc(n)%field(m)%values_4 )
+          if (associated(var%bc(n)%field(m)%values_4)) then
+            deallocate ( var%bc(n)%field(m)%values_4 )
+          endif
+          if (associated(var%bc(n)%field(m)%values_8)) then
+            deallocate ( var%bc(n)%field(m)%values_8 )
+          endif
         enddo
         deallocate ( var%bc(n)%field )
       enddo
@@ -6012,24 +5589,6 @@ contains
 
     var%num_bcs = 0
     var%set = .false.
-  end subroutine CT_destructor_3d_r4
+  end subroutine CT_destructor_3d
 
-  subroutine CT_destructor_3d_r8(var)
-    type(coupler_3d_bc_type), intent(inout) :: var  !< BC_type structure to be deconstructed
-
-    integer :: m, n
-
-    if (var%num_bcs > 0) then
-      do n = 1, var%num_bcs
-        do m = 1, var%bc(n)%num_fields
-          deallocate ( var%bc(n)%field(m)%values_8 )
-        enddo
-        deallocate ( var%bc(n)%field )
-      enddo
-      deallocate ( var%bc )
-    endif
-
-    var%num_bcs = 0
-    var%set = .false.
-  end subroutine CT_destructor_3d_r8
 end module coupler_types_mod
