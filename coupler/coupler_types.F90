@@ -281,7 +281,7 @@ module coupler_types_mod
 
   !> @brief This is the interface to write out checksums for the elements of a coupler_bc_type.
   interface coupler_type_write_chksums
-    module procedure CT_write_chksums_2d CT_write_chksums_3d
+    module procedure CT_write_chksums_2d, CT_write_chksums_3d
   end interface coupler_type_write_chksums
 
   !> @brief This is the interface to write out diagnostics of the arrays in a coupler_bc_type.
@@ -297,7 +297,7 @@ module coupler_types_mod
   !> @brief This is the interface to register the fields in a coupler_bc_type to be saved
   !! in restart files.
   interface coupler_type_register_restarts
-    module procedure mpp_io_CT_register_restarts_2d mpp_io_CT_register_restarts_3d
+    module procedure mpp_io_CT_register_restarts_2d, mpp_io_CT_register_restarts_3d
     module procedure mpp_io_CT_register_restarts_to_file_2d, mpp_io_CT_register_restarts_to_file_3d
     module procedure CT_register_restarts_2d, CT_register_restarts_3d
   end interface coupler_type_register_restarts
