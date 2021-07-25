@@ -1533,7 +1533,7 @@ contains
     logical :: do_in, do_out, do_complete
     integer :: m, n, fc, fc_in, fc_out
     logical :: do_in_8, do_out_8
-    integer :: fc_in_8, fc_out_8
+    integer :: fc_8, fc_in_8, fc_out_8
 
     do_complete = .true.
     if (present(complete)) do_complete = complete
@@ -1595,7 +1595,7 @@ contains
           & "Mismatch in the total number of fields in CT_redistribute_data_2d.")
     endif
 
-    if (.not.(do_in .or. do_out) .and. (.not.(do_in_8 .or. do_out_8)) return
+    if (.not.(do_in .or. do_out) .and. (.not.(do_in_8 .or. do_out_8))) return
 
     if (do_in .or. do_out) then
       fc = 0
@@ -1698,7 +1698,7 @@ contains
     logical :: do_in, do_out, do_complete
     integer :: m, n, fc, fc_in, fc_out
     logical :: do_in_8, do_out_8
-    integer :: fc_in_8, fc_out_8
+    integer :: fc_8, fc_in_8, fc_out_8
 
     do_complete = .true.
     if (present(complete)) do_complete = complete
@@ -1761,7 +1761,7 @@ contains
           & "Mismatch in the total number of fields in CT_redistribute_data_3d.")
     endif
 
-    if (.not.(do_in .or. do_out) .and. (.not.(do_in_8 .or. do_out_8)) return
+    if (.not.(do_in .or. do_out) .and. (.not.(do_in_8 .or. do_out_8))) return
 
     fc = 0
     if (do_in .and. do_out) then
