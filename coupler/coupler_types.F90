@@ -249,8 +249,7 @@ module coupler_types_mod
 
   !> @brief This is the interface to rescale the field data in a coupler_bc_type.
   interface coupler_type_rescale_data
-    module procedure CT_rescale_data_2d_r4, CT_rescale_data_3d_r4
-    module procedure CT_rescale_data_2d_r8, CT_rescale_data_3d_r8
+    module procedure CT_rescale_data_2d, CT_rescale_data_3d
   end interface coupler_type_rescale_data
 
   !> @brief This is the interface to increment the field data from one coupler_bc_type
@@ -1848,10 +1847,11 @@ contains
   !!
   !! Rescales the fields in the elements of a coupler_2d_bc_type by multiplying by a factor scale.
   !! If scale is 0, this is a direct assignment to 0, so that NaNs will not persist.
-  subroutine CT_rescale_data_2d_r4(var, scale, halo_size, bc_index, field_index,&
+  subroutine CT_rescale_data_2d(var, scale, scale_8, halo_size, bc_index, field_index,&
       & exclude_flux_type, only_flux_type, pass_through_ice)
     type(coupler_2d_bc_type),   intent(inout) :: var !< The BC_type structure whose fields are being rescaled
-    real(FLOAT_KIND),           intent(in)    :: scale   !< A scaling factor to multiply fields by
+    real(FLOAT_KIND), optional, intent(in)    :: scale   !< A scaling factor to multiply fields by
+    real(DOUBLE_KIND), optional, intent(in)   :: scale_8 !< A scaling factor to multiply fields by
     integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default or
                                                            !! the full arrays if scale is 0.
     integer,          optional, intent(in)    :: bc_index  !< The index of the boundary condition
@@ -1867,16 +1867,23 @@ contains
 
     logical :: do_bc
     integer :: i, j, m, n, n1, n2, halo
+    real(FLOAT_KIND) :: sc4  !< A scaling factor to multiply fields by
+    real(DOUBLE_KIND) :: sc8 !< A scaling factor to multiply fields by
+
+    sc4=1.0
+    sc8=1.0d0
+    if (present(scale)) sc4=scale
+    if (present(scale_8)) sc8=scale_8
 
     if (present(bc_index)) then
       if (bc_index > var%num_bcs)&
-          & call mpp_error(FATAL, "CT_rescale_data_2d_r4: bc_index is present and exceeds var%num_bcs.")
+          & call mpp_error(FATAL, "CT_rescale_data_2d: bc_index is present and exceeds var%num_bcs.")
       if (present(field_index)) then ; if (field_index > var%bc(bc_index)%num_fields)&
-          & call mpp_error(FATAL, "CT_rescale_data_2d_r4: field_index is present and exceeds num_fields for" //&
+          & call mpp_error(FATAL, "CT_rescale_data_2d: field_index is present and exceeds num_fields for" //&
           & trim(var%bc(bc_index)%name) )
       endif
     elseif (present(field_index)) then
-      call mpp_error(FATAL, "CT_rescale_data_2d_r4: bc_index must be present if field_index is present.")
+      call mpp_error(FATAL, "CT_rescale_data_2d: bc_index must be present if field_index is present.")
     endif
 
     halo = 0
@@ -1892,9 +1899,9 @@ contains
     if (n2 >= n1) then
       ! A more consciencious implementation would include a more descriptive error messages.
       if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
-          & call mpp_error(FATAL, "CT_rescale_data_2d_r4: Excessive i-direction halo size.")
+          & call mpp_error(FATAL, "CT_rescale_data_2d: Excessive i-direction halo size.")
       if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
-          & call mpp_error(FATAL, "CT_rescale_data_2d_r4: Excessive j-direction halo size.")
+          & call mpp_error(FATAL, "CT_rescale_data_2d: Excessive j-direction halo size.")
     endif
 
     do n = n1, n2
@@ -1911,8 +1918,9 @@ contains
         if (present(field_index)) then
           if (m /= field_index) cycle
         endif
+
         if ( associated(var%bc(n)%field(m)%values_4) ) then
-          if (scale == 0.0) then
+          if (sc4 == 0.0) then
             if (present(halo_size)) then
               do j=var%jsc-halo,var%jec+halo
                 do i=var%isc-halo,var%iec+halo
@@ -1925,81 +1933,14 @@ contains
           else
             do j=var%jsc-halo,var%jec+halo
               do i=var%isc-halo,var%iec+halo
-                var%bc(n)%field(m)%values_4(i,j) = scale * var%bc(n)%field(m)%values_4(i,j)
+                var%bc(n)%field(m)%values_4(i,j) = sc4 * var%bc(n)%field(m)%values_4(i,j)
               enddo
             enddo
           endif
         endif
-      enddo
-    enddo
-  end subroutine CT_rescale_data_2d_r4
 
-
-  subroutine CT_rescale_data_2d_r8(var, scale, halo_size, bc_index, field_index,&
-      & exclude_flux_type, only_flux_type, pass_through_ice)
-    type(coupler_2d_bc_type),   intent(inout) :: var !< The BC_type structure whose fields are being rescaled
-    real(DOUBLE_KIND),          intent(in)    :: scale   !< A scaling factor to multiply fields by
-    integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default or
-                                                           !! the full arrays if scale is 0.
-    integer,          optional, intent(in)    :: bc_index  !< The index of the boundary condition
-                                                           !! that is being copied
-    integer,          optional, intent(in)    :: field_index !< The index of the field in the
-                                                           !! boundary condition that is being copied
-    character(len=*), optional, intent(in)    :: exclude_flux_type !< A string describing which types
-                                                           !! of fluxes to exclude from this copy.
-    character(len=*), optional, intent(in)    :: only_flux_type !< A string describing which types
-                                                           !! of fluxes to include from this copy.
-    logical,          optional, intent(in)    :: pass_through_ice !< If true, only copy BCs whose
-                                                           !! value of pass_through ice matches this
-
-    logical :: do_bc
-    integer :: i, j, m, n, n1, n2, halo
-
-    if (present(bc_index)) then
-      if (bc_index > var%num_bcs)&
-          & call mpp_error(FATAL, "CT_rescale_data_2d_r8: bc_index is present and exceeds var%num_bcs.")
-      if (present(field_index)) then ; if (field_index > var%bc(bc_index)%num_fields)&
-          & call mpp_error(FATAL, "CT_rescale_data_2d_r8: field_index is present and exceeds num_fields for" //&
-          & trim(var%bc(bc_index)%name) )
-      endif
-    elseif (present(field_index)) then
-      call mpp_error(FATAL, "CT_rescale_data_2d_r8: bc_index must be present if field_index is present.")
-    endif
-
-    halo = 0
-    if (present(halo_size)) halo = halo_size
-
-    n1 = 1
-    n2 = var%num_bcs
-    if (present(bc_index)) then
-      n1 = bc_index
-      n2 = bc_index
-    endif
-
-    if (n2 >= n1) then
-      ! A more consciencious implementation would include a more descriptive error messages.
-      if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
-          & call mpp_error(FATAL, "CT_rescale_data_2d_r8: Excessive i-direction halo size.")
-      if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
-          & call mpp_error(FATAL, "CT_rescale_data_2d_r8: Excessive j-direction halo size.")
-    endif
-
-    do n = n1, n2
-      do_bc = .true.
-      if (do_bc .and. present(exclude_flux_type))&
-          & do_bc = .not.(trim(var%bc(n)%flux_type) == trim(exclude_flux_type))
-      if (do_bc .and. present(only_flux_type))&
-          & do_bc = (trim(var%bc(n)%flux_type) == trim(only_flux_type))
-      if (do_bc .and. present(pass_through_ice))&
-          & do_bc = (pass_through_ice .eqv. var%bc(n)%pass_through_ice)
-      if (.not.do_bc) cycle
-
-      do m = 1, var%bc(n)%num_fields
-        if (present(field_index)) then
-          if (m /= field_index) cycle
-        endif
         if ( associated(var%bc(n)%field(m)%values_8) ) then
-          if (scale == 0.0) then
+          if (sc8 == 0.0) then
             if (present(halo_size)) then
               do j=var%jsc-halo,var%jec+halo
                 do i=var%isc-halo,var%iec+halo
@@ -2012,24 +1953,24 @@ contains
           else
             do j=var%jsc-halo,var%jec+halo
               do i=var%isc-halo,var%iec+halo
-                var%bc(n)%field(m)%values_8(i,j) = scale * var%bc(n)%field(m)%values_8(i,j)
+                var%bc(n)%field(m)%values_8(i,j) = sc8 * var%bc(n)%field(m)%values_8(i,j)
               enddo
             enddo
           endif
         endif
       enddo
     enddo
-  end subroutine CT_rescale_data_2d_r8
-
+  end subroutine CT_rescale_data_2d
 
   !! @brief Rescales the fields in the elements of a coupler_3d_bc_type
   !!
   !! This subroutine rescales the fields in the elements of a coupler_3d_bc_type by multiplying by a
   !! factor scale.  If scale is 0, this is a direct assignment to 0, so that NaNs will not persist.
-  subroutine CT_rescale_data_3d_r4(var, scale, halo_size, bc_index, field_index,&
+  subroutine CT_rescale_data_3d(var, scale, scale_8, halo_size, bc_index, field_index,&
       & exclude_flux_type, only_flux_type, pass_through_ice)
     type(coupler_3d_bc_type),   intent(inout) :: var !< The BC_type structure whose fields are being rescaled
-    real(FLOAT_KIND),           intent(in)    :: scale   !< A scaling factor to multiply fields by
+    real(FLOAT_KIND), optional, intent(in)    :: scale   !< A scaling factor to multiply fields by
+    real(DOUBLE_KIND), optional, intent(in)   :: scale_8 !< A scaling factor to multiply fields by
     integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default or
                                                            !! the full arrays if scale is 0.
     integer,          optional, intent(in)    :: bc_index  !< The index of the boundary condition
@@ -2045,16 +1986,23 @@ contains
 
     logical :: do_bc
     integer :: i, j, k, m, n, n1, n2, halo
+    real(FLOAT_KIND) :: sc4  !< A scaling factor to multiply fields by
+    real(DOUBLE_KIND) :: sc8 !< A scaling factor to multiply fields by
+
+    sc4=1.0
+    sc8=1.0d0
+    if (present(scale)) sc4=scale
+    if (present(scale_8)) sc8=scale_8
 
     if (present(bc_index)) then
       if (bc_index > var%num_bcs)&
-          & call mpp_error(FATAL, "CT_rescale_data_3d_r4: bc_index is present and exceeds var%num_bcs.")
+          & call mpp_error(FATAL, "CT_rescale_data_3d: bc_index is present and exceeds var%num_bcs.")
       if (present(field_index)) then ; if (field_index > var%bc(bc_index)%num_fields)&
-          & call mpp_error(FATAL, "CT_rescale_data_3d_r4: field_index is present and exceeds num_fields for" //&
+          & call mpp_error(FATAL, "CT_rescale_data_3d: field_index is present and exceeds num_fields for" //&
           & trim(var%bc(bc_index)%name) )
       endif
     elseif (present(field_index)) then
-      call mpp_error(FATAL, "CT_rescale_data_3d_r4: bc_index must be present if field_index is present.")
+      call mpp_error(FATAL, "CT_rescale_data_3d: bc_index must be present if field_index is present.")
     endif
 
     halo = 0
@@ -2070,9 +2018,9 @@ contains
     if (n2 >= n1) then
       ! A more consciencious implementation would include a more descriptive error messages.
       if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
-          & call mpp_error(FATAL, "CT_rescale_data_3d_r4: Excessive i-direction halo size.")
+          & call mpp_error(FATAL, "CT_rescale_data_3d: Excessive i-direction halo size.")
       if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
-          & call mpp_error(FATAL, "CT_rescale_data_3d_r4: Excessive j-direction halo size.")
+          & call mpp_error(FATAL, "CT_rescale_data_3d: Excessive j-direction halo size.")
     endif
 
     do n = n1, n2
@@ -2090,7 +2038,7 @@ contains
           if (m /= field_index) cycle
         endif
         if ( associated(var%bc(n)%field(m)%values_4) ) then
-          if (scale == 0.0) then
+          if (sc4 == 0.0) then
             if (present(halo_size)) then
               do k=var%ks,var%ke
                 do j=var%jsc-halo,var%jec+halo
@@ -2106,82 +2054,14 @@ contains
             do k=var%ks,var%ke
               do j=var%jsc-halo,var%jec+halo
                 do i=var%isc-halo,var%iec+halo
-                  var%bc(n)%field(m)%values_4(i,j,k) = scale * var%bc(n)%field(m)%values_4(i,j,k)
+                  var%bc(n)%field(m)%values_4(i,j,k) = sc4 * var%bc(n)%field(m)%values_4(i,j,k)
                 enddo
               enddo
             enddo
           endif
         endif
-      enddo
-    enddo
-  end subroutine CT_rescale_data_3d_r4
-
-
-  subroutine CT_rescale_data_3d_r8(var, scale, halo_size, bc_index, field_index,&
-      & exclude_flux_type, only_flux_type, pass_through_ice)
-    type(coupler_3d_bc_type),   intent(inout) :: var !< The BC_type structure whose fields are being rescaled
-    real(DOUBLE_KIND),          intent(in)    :: scale   !< A scaling factor to multiply fields by
-    integer,          optional, intent(in)    :: halo_size !< The extent of the halo to copy; 0 by default or
-                                                           !! the full arrays if scale is 0.
-    integer,          optional, intent(in)    :: bc_index  !< The index of the boundary condition
-                                                         !! that is being copied
-    integer,          optional, intent(in)    :: field_index !< The index of the field in the
-                                                         !! boundary condition that is being copied
-    character(len=*), optional, intent(in)    :: exclude_flux_type !< A string describing which types
-                                                         !! of fluxes to exclude from this copy.
-    character(len=*), optional, intent(in)    :: only_flux_type !< A string describing which types of
-                                                         !! fluxes to include from this copy.
-    logical,          optional, intent(in)    :: pass_through_ice !< If true, only copy BCs whose
-                                                         !! value of pass_through ice matches this
-
-    logical :: do_bc
-    integer :: i, j, k, m, n, n1, n2, halo
-
-    if (present(bc_index)) then
-      if (bc_index > var%num_bcs)&
-          & call mpp_error(FATAL, "CT_rescale_data_3d_r8: bc_index is present and exceeds var%num_bcs.")
-      if (present(field_index)) then ; if (field_index > var%bc(bc_index)%num_fields)&
-          & call mpp_error(FATAL, "CT_rescale_data_3d_r8: field_index is present and exceeds num_fields for" //&
-          & trim(var%bc(bc_index)%name) )
-      endif
-    elseif (present(field_index)) then
-      call mpp_error(FATAL, "CT_rescale_data_3d_r8: bc_index must be present if field_index is present.")
-    endif
-
-    halo = 0
-    if (present(halo_size)) halo = halo_size
-
-    n1 = 1
-    n2 = var%num_bcs
-    if (present(bc_index)) then
-      n1 = bc_index
-      n2 = bc_index
-    endif
-
-    if (n2 >= n1) then
-      ! A more consciencious implementation would include a more descriptive error messages.
-      if ((var%isc-var%isd < halo) .or. (var%ied-var%iec < halo))&
-          & call mpp_error(FATAL, "CT_rescale_data_3d_r8: Excessive i-direction halo size.")
-      if ((var%jsc-var%jsd < halo) .or. (var%jed-var%jec < halo))&
-          & call mpp_error(FATAL, "CT_rescale_data_3d_r8: Excessive j-direction halo size.")
-    endif
-
-    do n = n1, n2
-      do_bc = .true.
-      if (do_bc .and. present(exclude_flux_type))&
-          & do_bc = .not.(trim(var%bc(n)%flux_type) == trim(exclude_flux_type))
-      if (do_bc .and. present(only_flux_type))&
-          & do_bc = (trim(var%bc(n)%flux_type) == trim(only_flux_type))
-      if (do_bc .and. present(pass_through_ice))&
-          & do_bc = (pass_through_ice .eqv. var%bc(n)%pass_through_ice)
-      if (.not.do_bc) cycle
-
-      do m = 1, var%bc(n)%num_fields
-        if (present(field_index)) then
-          if (m /= field_index) cycle
-        endif
         if ( associated(var%bc(n)%field(m)%values_8) ) then
-          if (scale == 0.0) then
+          if (sc8 == 0.0) then
             if (present(halo_size)) then
               do k=var%ks,var%ke
                 do j=var%jsc-halo,var%jec+halo
@@ -2197,7 +2077,7 @@ contains
             do k=var%ks,var%ke
               do j=var%jsc-halo,var%jec+halo
                 do i=var%isc-halo,var%iec+halo
-                  var%bc(n)%field(m)%values_8(i,j,k) = scale * var%bc(n)%field(m)%values_8(i,j,k)
+                  var%bc(n)%field(m)%values_8(i,j,k) = sc8 * var%bc(n)%field(m)%values_8(i,j,k)
                 enddo
               enddo
             enddo
@@ -2205,8 +2085,7 @@ contains
         endif
       enddo
     enddo
-  end subroutine CT_rescale_data_3d_r8
-
+  end subroutine CT_rescale_data_3d
 
   !! @brief Increment data in all elements of one coupler_2d_bc_type
   !!
