@@ -244,8 +244,7 @@ module coupler_types_mod
   !> @brief This is the interface to redistribute the field data from one coupler_bc_type
   !! to another of the same rank and global size, but a different decomposition.
   interface coupler_type_redistribute_data
-    module procedure CT_redistribute_data_2d_r4, CT_redistribute_data_3d_r4
-    module procedure CT_redistribute_data_2d_r8, CT_redistribute_data_3d_r8
+    module procedure CT_redistribute_data_2d, CT_redistribute_data_3d
   end interface coupler_type_redistribute_data
 
   !> @brief This is the interface to rescale the field data in a coupler_bc_type.
@@ -1522,7 +1521,7 @@ contains
   !!
   !! @throw FATAL, "Mismatch in num_bcs in CT_copy_data_2d."
   !! @throw FATAL, "Mismatch in the total number of fields in CT_redistribute_data_2d."
-  subroutine CT_redistribute_data_2d_r4(var_in, domain_in, var_out, domain_out, complete)
+  subroutine CT_redistribute_data_2d(var_in, domain_in, var_out, domain_out, complete)
     type(coupler_2d_bc_type), intent(in)    :: var_in     !< BC_type structure with the data to copy (intent in)
     type(domain2D),           intent(in)    :: domain_in  !< The FMS domain for the input structure
     type(coupler_2d_bc_type), intent(inout) :: var_out    !< The recipient BC_type structure (data intent out)
@@ -1530,8 +1529,11 @@ contains
     logical,        optional, intent(in)    :: complete   !< If true, complete the updates
 
     real(FLOAT_KIND), pointer, dimension(:,:) :: null_ptr2D => NULL()
+    real(DOUBLE_KIND), pointer, dimension(:,:) :: null_ptr2D_8 => NULL()
     logical :: do_in, do_out, do_complete
     integer :: m, n, fc, fc_in, fc_out
+    logical :: do_in_8, do_out_8
+    integer :: fc_in_8, fc_out_8
 
     do_complete = .true.
     if (present(complete)) do_complete = complete
@@ -1539,12 +1541,23 @@ contains
     ! Figure out whether this PE has valid input or output fields or both.
     do_in = var_in%set
     do_out = var_out%set
+    do_in_8 = var_in%set
+    do_out_8 = var_out%set
 
     fc_in = 0 ; fc_out = 0
     if (do_in) then
       do n = 1, var_in%num_bcs
         do m = 1, var_in%bc(n)%num_fields
           if (associated(var_in%bc(n)%field(m)%values_4)) fc_in = fc_in + 1
+        enddo
+      enddo
+    endif
+
+    fc_in_8 = 0 ; fc_out_8 = 0
+    if (do_in_8) then
+      do n = 1, var_in%num_bcs
+        do m = 1, var_in%bc(n)%num_fields
+          if (associated(var_in%bc(n)%field(m)%values_8)) fc_in_8 = fc_in_8 + 1
         enddo
       enddo
     endif
@@ -1558,149 +1571,122 @@ contains
     endif
     if (fc_out == 0) do_out = .false.
 
+    if (fc_in_8 == 0) do_in_8 = .false.
+    if (do_out_8) then
+      do n = 1, var_out%num_bcs
+        do m = 1, var_out%bc(n)%num_fields
+          if (associated(var_out%bc(n)%field(m)%values_8)) fc_out_8 = fc_out_8 + 1
+        enddo
+      enddo
+    endif
+    if (fc_out_8 == 0) do_out_8 = .false.
+
     if (do_in .and. do_out) then
       if (var_in%num_bcs /= var_out%num_bcs) call mpp_error(FATAL,&
-          & "Mismatch in num_bcs in CT_copy_data_2d_r4.")
+          & "Mismatch in num_bcs in CT_copy_data_2d.")
       if (fc_in /= fc_out) call mpp_error(FATAL,&
-          & "Mismatch in the total number of fields in CT_redistribute_data_2d_r4.")
+          & "Mismatch in the total number of fields in CT_redistribute_data_2d.")
     endif
 
-    if (.not.(do_in .or. do_out)) return
+    if (do_in_8 .and. do_out_8) then
+      if (var_in%num_bcs /= var_out%num_bcs) call mpp_error(FATAL,&
+          & "Mismatch in num_bcs in CT_copy_data_2d.")
+      if (fc_in_8 /= fc_out_8) call mpp_error(FATAL,&
+          & "Mismatch in the total number of fields in CT_redistribute_data_2d.")
+    endif
 
-    fc = 0
-    if (do_in .and. do_out) then
-      do n = 1, var_in%num_bcs
-        do m = 1, var_in%bc(n)%num_fields
-          if ( associated(var_in%bc(n)%field(m)%values_4) .neqv.&
+    if (.not.(do_in .or. do_out) .and. (.not.(do_in_8 .or. do_out_8)) return
+
+    if (do_in .or. do_out) then
+      fc = 0
+      if (do_in .and. do_out) then
+        do n = 1, var_in%num_bcs
+          do m = 1, var_in%bc(n)%num_fields
+            if ( associated(var_in%bc(n)%field(m)%values_4) .neqv.&
               & associated(var_out%bc(n)%field(m)%values_4) ) &
               call mpp_error(FATAL,&
-              & "Mismatch in which fields are associated in CT_redistribute_data_2d_r4.")
-          if ( associated(var_in%bc(n)%field(m)%values_4) ) then
-            fc = fc + 1
-            call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values_4,&
+              & "Mismatch in which fields are associated in CT_redistribute_data_2d.")
+            if ( associated(var_in%bc(n)%field(m)%values_4) ) then
+              fc = fc + 1
+              call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values_4,&
                 & domain_out, var_out%bc(n)%field(m)%values_4,&
                 & complete=(do_complete.and.(fc==fc_in)) )
-          endif
+            endif
+          enddo
         enddo
-      enddo
-    elseif (do_in) then
-      do n = 1, var_in%num_bcs
-        do m = 1, var_in%bc(n)%num_fields
-          if ( associated(var_in%bc(n)%field(m)%values_4) ) then
-            fc = fc + 1
-            call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values_4,&
+      elseif (do_in) then
+        do n = 1, var_in%num_bcs
+          do m = 1, var_in%bc(n)%num_fields
+            if ( associated(var_in%bc(n)%field(m)%values_4) ) then
+              fc = fc + 1
+              call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values_4,&
                 & domain_out, null_ptr2D,&
                 & complete=(do_complete.and.(fc==fc_in)) )
-          endif
+            endif
+          enddo
         enddo
-      enddo
-    elseif (do_out) then
-      do n = 1, var_out%num_bcs
-        do m = 1, var_out%bc(n)%num_fields
-          if ( associated(var_out%bc(n)%field(m)%values_4) ) then
-            fc = fc + 1
-            call mpp_redistribute(domain_in, null_ptr2D,&
+      elseif (do_out) then
+        do n = 1, var_out%num_bcs
+          do m = 1, var_out%bc(n)%num_fields
+            if ( associated(var_out%bc(n)%field(m)%values_4) ) then
+              fc = fc + 1
+              call mpp_redistribute(domain_in, null_ptr2D,&
                 & domain_out, var_out%bc(n)%field(m)%values_4,&
                 & complete=(do_complete.and.(fc==fc_out)) )
-          endif
+            endif
+          enddo
         enddo
-      enddo
-    endif
-  end subroutine CT_redistribute_data_2d_r4
-
-
-  subroutine CT_redistribute_data_2d_r8(var_in, domain_in, var_out, domain_out, complete)
-    type(coupler_2d_bc_type), intent(in)    :: var_in     !< BC_type structure with the data to copy (intent in)
-    type(domain2D),           intent(in)    :: domain_in  !< The FMS domain for the input structure
-    type(coupler_2d_bc_type), intent(inout) :: var_out    !< The recipient BC_type structure (data intent out)
-    type(domain2D),           intent(in)    :: domain_out !< The FMS domain for the output structure
-    logical,        optional, intent(in)    :: complete   !< If true, complete the updates
-
-    real(DOUBLE_KIND), pointer, dimension(:,:) :: null_ptr2D => NULL()
-    logical :: do_in, do_out, do_complete
-    integer :: m, n, fc, fc_in, fc_out
-
-    do_complete = .true.
-    if (present(complete)) do_complete = complete
-
-    ! Figure out whether this PE has valid input or output fields or both.
-    do_in = var_in%set
-    do_out = var_out%set
-
-    fc_in = 0 ; fc_out = 0
-    if (do_in) then
-      do n = 1, var_in%num_bcs
-        do m = 1, var_in%bc(n)%num_fields
-          if (associated(var_in%bc(n)%field(m)%values_8)) fc_in = fc_in + 1
-        enddo
-      enddo
-    endif
-    if (fc_in == 0) do_in = .false.
-    if (do_out) then
-      do n = 1, var_out%num_bcs
-        do m = 1, var_out%bc(n)%num_fields
-          if (associated(var_out%bc(n)%field(m)%values_8)) fc_out = fc_out + 1
-        enddo
-      enddo
-    endif
-    if (fc_out == 0) do_out = .false.
-
-    if (do_in .and. do_out) then
-      if (var_in%num_bcs /= var_out%num_bcs) call mpp_error(FATAL,&
-          & "Mismatch in num_bcs in CT_copy_data_2d_r8.")
-      if (fc_in /= fc_out) call mpp_error(FATAL,&
-          & "Mismatch in the total number of fields in CT_redistribute_data_2d_r8.")
+      endif
     endif
 
-    if (.not.(do_in .or. do_out)) return
-
-    fc = 0
-    if (do_in .and. do_out) then
-      do n = 1, var_in%num_bcs
-        do m = 1, var_in%bc(n)%num_fields
-          if ( associated(var_in%bc(n)%field(m)%values_8) .neqv.&
+    if (do_in_8 .or. do_out_8) then
+      fc_8 = 0
+      if (do_in_8 .and. do_out_8) then
+        do n = 1, var_in%num_bcs
+          do m = 1, var_in%bc(n)%num_fields
+            if ( associated(var_in%bc(n)%field(m)%values_8) .neqv.&
               & associated(var_out%bc(n)%field(m)%values_8) ) &
               call mpp_error(FATAL,&
-              & "Mismatch in which fields are associated in CT_redistribute_data_2d_r8.")
-          if ( associated(var_in%bc(n)%field(m)%values_8) ) then
-            fc = fc + 1
-            call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values_8,&
+              & "Mismatch in which fields are associated in CT_redistribute_data_2d.")
+            if ( associated(var_in%bc(n)%field(m)%values_8) ) then
+              fc_8 = fc_8 + 1
+              call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values_8,&
                 & domain_out, var_out%bc(n)%field(m)%values_8,&
-                & complete=(do_complete.and.(fc==fc_in)) )
-          endif
+                & complete=(do_complete.and.(fc==fc_in_8)) )
+            endif
+          enddo
         enddo
-      enddo
-    elseif (do_in) then
-      do n = 1, var_in%num_bcs
-        do m = 1, var_in%bc(n)%num_fields
-          if ( associated(var_in%bc(n)%field(m)%values_8) ) then
-            fc = fc + 1
-            call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values_8,&
-                & domain_out, null_ptr2D,&
-                & complete=(do_complete.and.(fc==fc_in)) )
-          endif
+      elseif (do_in_8) then
+        do n = 1, var_in%num_bcs
+          do m = 1, var_in%bc(n)%num_fields
+            if ( associated(var_in%bc(n)%field(m)%values_8) ) then
+              fc_8 = fc_8 + 1
+              call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values_8,&
+                & domain_out, null_ptr2D_8,&
+                & complete=(do_complete.and.(fc==fc_in_8)) )
+            endif
+          enddo
         enddo
-      enddo
-    elseif (do_out) then
-      do n = 1, var_out%num_bcs
-        do m = 1, var_out%bc(n)%num_fields
-          if ( associated(var_out%bc(n)%field(m)%values_8) ) then
-            fc = fc + 1
-            call mpp_redistribute(domain_in, null_ptr2D,&
+      elseif (do_out_8) then
+        do n = 1, var_out%num_bcs
+          do m = 1, var_out%bc(n)%num_fields
+            if ( associated(var_out%bc(n)%field(m)%values_8) ) then
+              fc_8 = fc_8 + 1
+              call mpp_redistribute(domain_in, null_ptr2D_8,&
                 & domain_out, var_out%bc(n)%field(m)%values_8,&
-                & complete=(do_complete.and.(fc==fc_out)) )
-          endif
+                & complete=(do_complete.and.(fc==fc_out_8)) )
+            endif
+          enddo
         enddo
-      enddo
+      endif
     endif
-  end subroutine CT_redistribute_data_2d_r8
-
+  end subroutine CT_redistribute_data_2d
 
   !> @brief Redistributes the data in all elements of one coupler_2d_bc_type
   !!
   !! Redistributes the data in all elements of one coupler_2d_bc_type into another, which may be on
   !! different processors with a different decomposition.
-  subroutine CT_redistribute_data_3d_r4(var_in, domain_in, var_out, domain_out, complete)
+  subroutine CT_redistribute_data_3d(var_in, domain_in, var_out, domain_out, complete)
     type(coupler_3d_bc_type), intent(in)    :: var_in     !< BC_type structure with the data to copy (intent in)
     type(domain2D),           intent(in)    :: domain_in  !< The FMS domain for the input structure
     type(coupler_3d_bc_type), intent(inout) :: var_out    !< The recipient BC_type structure (data intent out)
@@ -1708,8 +1694,11 @@ contains
     logical,        optional, intent(in)    :: complete   !< If true, complete the updates
 
     real(FLOAT_KIND), pointer, dimension(:,:,:) :: null_ptr3D => NULL()
+    real(DOUBLE_KIND), pointer, dimension(:,:,:) :: null_ptr3D_8 => NULL()
     logical :: do_in, do_out, do_complete
     integer :: m, n, fc, fc_in, fc_out
+    logical :: do_in_8, do_out_8
+    integer :: fc_in_8, fc_out_8
 
     do_complete = .true.
     if (present(complete)) do_complete = complete
@@ -1717,6 +1706,8 @@ contains
     ! Figure out whether this PE has valid input or output fields or both.
     do_in = var_in%set
     do_out = var_out%set
+    do_in_8 = var_in%set
+    do_out_8 = var_out%set
 
     fc_in = 0
     fc_out = 0
@@ -1727,6 +1718,15 @@ contains
         enddo
       enddo
     endif
+    fc_in_8 = 0
+    fc_out_8 = 0
+    if (do_in_8) then
+      do n = 1, var_in%num_bcs
+        do m = 1, var_in%bc(n)%num_fields
+          if (associated(var_in%bc(n)%field(m)%values_8)) fc_in_8 = fc_in_8 + 1
+        enddo
+      enddo
+    endif
     if (fc_in == 0) do_in = .false.
     if (do_out) then
       do n = 1, var_out%num_bcs
@@ -1737,14 +1737,31 @@ contains
     endif
     if (fc_out == 0) do_out = .false.
 
+    if (fc_in_8 == 0) do_in_8 = .false.
+    if (do_out_8) then
+      do n = 1, var_out%num_bcs
+        do m = 1, var_out%bc(n)%num_fields
+          if (associated(var_out%bc(n)%field(m)%values_8)) fc_out_8 = fc_out_8 + 1
+        enddo
+      enddo
+    endif
+    if (fc_out_8 == 0) do_out_8 = .false.
+
     if (do_in .and. do_out) then
       if (var_in%num_bcs /= var_out%num_bcs) call mpp_error(FATAL,&
-          & "Mismatch in num_bcs in CT_copy_data_3d_r4.")
+          & "Mismatch in num_bcs in CT_copy_data_3d.")
       if (fc_in /= fc_out) call mpp_error(FATAL,&
-          & "Mismatch in the total number of fields in CT_redistribute_data_3d_r4.")
+          & "Mismatch in the total number of fields in CT_redistribute_data_3d.")
     endif
 
-    if (.not.(do_in .or. do_out)) return
+    if (do_in_8 .and. do_out_8) then
+      if (var_in%num_bcs /= var_out%num_bcs) call mpp_error(FATAL,&
+          & "Mismatch in num_bcs in CT_copy_data_3d.")
+      if (fc_in_8 /= fc_out_8) call mpp_error(FATAL,&
+          & "Mismatch in the total number of fields in CT_redistribute_data_3d.")
+    endif
+
+    if (.not.(do_in .or. do_out) .and. (.not.(do_in_8 .or. do_out_8)) return
 
     fc = 0
     if (do_in .and. do_out) then
@@ -1753,7 +1770,7 @@ contains
           if ( associated(var_in%bc(n)%field(m)%values_4) .neqv.&
               & associated(var_out%bc(n)%field(m)%values_4) )&
               & call mpp_error(FATAL,&
-              & "Mismatch in which fields are associated in CT_redistribute_data_3d_r4.")
+              & "Mismatch in which fields are associated in CT_redistribute_data_3d.")
           if ( associated(var_in%bc(n)%field(m)%values_4) ) then
             fc = fc + 1
             call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values_4,&
@@ -1785,96 +1802,47 @@ contains
         enddo
       enddo
     endif
-  end subroutine CT_redistribute_data_3d_r4
 
-
-  subroutine CT_redistribute_data_3d_r8(var_in, domain_in, var_out, domain_out, complete)
-    type(coupler_3d_bc_type), intent(in)    :: var_in     !< BC_type structure with the data to copy (intent in)
-    type(domain2D),           intent(in)    :: domain_in  !< The FMS domain for the input structure
-    type(coupler_3d_bc_type), intent(inout) :: var_out    !< The recipient BC_type structure (data intent out)
-    type(domain2D),           intent(in)    :: domain_out !< The FMS domain for the output structure
-    logical,        optional, intent(in)    :: complete   !< If true, complete the updates
-
-    real(DOUBLE_KIND), pointer, dimension(:,:,:) :: null_ptr3D => NULL()
-    logical :: do_in, do_out, do_complete
-    integer :: m, n, fc, fc_in, fc_out
-
-    do_complete = .true.
-    if (present(complete)) do_complete = complete
-
-    ! Figure out whether this PE has valid input or output fields or both.
-    do_in = var_in%set
-    do_out = var_out%set
-
-    fc_in = 0
-    fc_out = 0
-    if (do_in) then
-      do n = 1, var_in%num_bcs
-        do m = 1, var_in%bc(n)%num_fields
-          if (associated(var_in%bc(n)%field(m)%values_8)) fc_in = fc_in + 1
-        enddo
-      enddo
-    endif
-    if (fc_in == 0) do_in = .false.
-    if (do_out) then
-      do n = 1, var_out%num_bcs
-        do m = 1, var_out%bc(n)%num_fields
-          if (associated(var_out%bc(n)%field(m)%values_8)) fc_out = fc_out + 1
-        enddo
-      enddo
-    endif
-    if (fc_out == 0) do_out = .false.
-
-    if (do_in .and. do_out) then
-      if (var_in%num_bcs /= var_out%num_bcs) call mpp_error(FATAL,&
-          & "Mismatch in num_bcs in CT_copy_data_3d_r8.")
-      if (fc_in /= fc_out) call mpp_error(FATAL,&
-          & "Mismatch in the total number of fields in CT_redistribute_data_3d_r8.")
-    endif
-
-    if (.not.(do_in .or. do_out)) return
-
-    fc = 0
-    if (do_in .and. do_out) then
+    fc_8 = 0
+    if (do_in_8 .and. do_out_8) then
       do n = 1, var_in%num_bcs
         do m = 1, var_in%bc(n)%num_fields
           if ( associated(var_in%bc(n)%field(m)%values_8) .neqv.&
               & associated(var_out%bc(n)%field(m)%values_8) )&
               & call mpp_error(FATAL,&
-              & "Mismatch in which fields are associated in CT_redistribute_data_3d_r8.")
+              & "Mismatch in which fields are associated in CT_redistribute_data_3d.")
           if ( associated(var_in%bc(n)%field(m)%values_8) ) then
-            fc = fc + 1
+            fc_8 = fc_8 + 1
             call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values_8,&
                 & domain_out, var_out%bc(n)%field(m)%values_8,&
-                & complete=(do_complete.and.(fc==fc_in)) )
+                & complete=(do_complete.and.(fc==fc_in_8)) )
           endif
         enddo
       enddo
-    elseif (do_in) then
+    elseif (do_in_8) then
       do n = 1, var_in%num_bcs
         do m = 1, var_in%bc(n)%num_fields
           if ( associated(var_in%bc(n)%field(m)%values_8) ) then
-            fc = fc + 1
+            fc_8 = fc_8 + 1
             call mpp_redistribute(domain_in, var_in%bc(n)%field(m)%values_8,&
-                & domain_out, null_ptr3D,&
-                & complete=(do_complete.and.(fc==fc_in)) )
+                & domain_out, null_ptr3D_8,&
+                & complete=(do_complete.and.(fc==fc_in_8)) )
           endif
         enddo
       enddo
-    elseif (do_out) then
+    elseif (do_out_8) then
       do n = 1, var_out%num_bcs
         do m = 1, var_out%bc(n)%num_fields
           if ( associated(var_out%bc(n)%field(m)%values_8) ) then
-            fc = fc + 1
-            call mpp_redistribute(domain_in, null_ptr3D,&
+            fc_8 = fc_8 + 1
+            call mpp_redistribute(domain_in, null_ptr3D_8,&
                 & domain_out, var_out%bc(n)%field(m)%values_8,&
-                & complete=(do_complete.and.(fc==fc_out)) )
+                & complete=(do_complete.and.(fc==fc_out_8)) )
           endif
         enddo
       enddo
     endif
-  end subroutine CT_redistribute_data_3d_r8
-
+  end subroutine CT_redistribute_data_3d
 
   !> @brief Rescales the fields in the fields in the elements of a coupler_2d_bc_type
   !!
