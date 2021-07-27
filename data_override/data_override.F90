@@ -41,6 +41,7 @@
 !! A field can be overriden globally (by default) or users can specify one or two regions in which
 !! data_override will take place, field values outside the region will not be affected.
 module data_override_mod
+#include <fms_platform.h>
 use constants_mod, only: PI
 use mpp_io_mod, only: axistype, mpp_close, mpp_open, mpp_get_axis_data, MPP_RDONLY
 use mpp_mod, only : mpp_error, FATAL, WARNING, stdout, stdlog, mpp_max
