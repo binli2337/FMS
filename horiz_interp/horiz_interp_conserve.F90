@@ -49,6 +49,7 @@ module horiz_interp_conserve_mod
   use grid2_mod,             only: get_great_circle_algorithm
   use constants_mod,         only: PI
   use horiz_interp_type_mod, only: horiz_interp_type
+  use platform_mod,          only: r4_kind, r8_kind
 
 
   implicit none
@@ -103,6 +104,11 @@ module horiz_interp_conserve_mod
      module procedure horiz_interp_conserve_new_2dx1d
      module procedure horiz_interp_conserve_new_2dx2d
   end interface
+  interface horiz_interp_conserve
+     module procedure horiz_interp_conserve_r4
+     module procedure horiz_interp_conserve_r8
+  end interface
+
   ! </INTERFACE>
   public :: horiz_interp_conserve_init
   public :: horiz_interp_conserve_new, horiz_interp_conserve, horiz_interp_conserve_del
@@ -763,15 +769,15 @@ contains
   !      horiz_interp_conserve_new_2d.
   !   </OUT>
 
-  subroutine horiz_interp_conserve ( Interp, data_in, data_out, verbose, &
+  subroutine horiz_interp_conserve_r4 ( Interp, data_in, data_out, verbose, &
        mask_in, mask_out)
     !-----------------------------------------------------------------------
     type (horiz_interp_type), intent(in) :: Interp
-    real, intent(in),  dimension(:,:) :: data_in
-    real, intent(out), dimension(:,:) :: data_out
+    real(r4_kind), intent(in),  dimension(:,:) :: data_in
+    real(r4_kind), intent(out), dimension(:,:) :: data_out
     integer, intent(in),                   optional :: verbose
-    real, intent(in),   dimension(:,:), optional :: mask_in
-    real, intent(out),  dimension(:,:), optional :: mask_out
+    real(r4_kind), intent(in),   dimension(:,:), optional :: mask_in
+    real(r4_kind), intent(out),  dimension(:,:), optional :: mask_out
 
     !  --- error checking ---
     if (size(data_in,1) /= Interp%nlon_src .or. size(data_in,2) /= Interp%nlat_src) &
@@ -782,31 +788,206 @@ contains
 
     select case ( Interp%version)
     case (1)
-       call horiz_interp_conserve_version1(Interp, data_in, data_out, verbose, mask_in, mask_out)
+       call horiz_interp_conserve_version1_r4(Interp, data_in, data_out, verbose, mask_in, mask_out)
     case (2)
        if(present(mask_in) .OR. present(mask_out) ) call mpp_error(FATAL,  &
             'horiz_interp_conserve: for version 2, mask_in and mask_out must be passed in horiz_interp_new, not in horiz_interp')
-       call horiz_interp_conserve_version2(Interp, data_in, data_out, verbose)
+       call horiz_interp_conserve_version2_r4(Interp, data_in, data_out, verbose)
     end select
 
-  end subroutine horiz_interp_conserve
-  ! </SUBROUTINE>
+  end subroutine horiz_interp_conserve_r4
 
-  !##############################################################################
-  subroutine horiz_interp_conserve_version1 ( Interp, data_in, data_out, verbose, &
+  subroutine horiz_interp_conserve_r8 ( Interp, data_in, data_out, verbose, &
        mask_in, mask_out)
     !-----------------------------------------------------------------------
     type (horiz_interp_type), intent(in) :: Interp
-    real, intent(in),  dimension(:,:) :: data_in
-    real, intent(out), dimension(:,:) :: data_out
+    real(r8_kind), intent(in),  dimension(:,:) :: data_in
+    real(r8_kind), intent(out), dimension(:,:) :: data_out
     integer, intent(in),                   optional :: verbose
-    real, intent(in),   dimension(:,:), optional :: mask_in
-    real, intent(out),  dimension(:,:), optional :: mask_out
+    real(r8_kind), intent(in),   dimension(:,:), optional :: mask_in
+    real(r8_kind), intent(out),  dimension(:,:), optional :: mask_out
+
+    !  --- error checking ---
+    if (size(data_in,1) /= Interp%nlon_src .or. size(data_in,2) /= Interp%nlat_src) &
+         call mpp_error(FATAL, 'horiz_interp_conserve_mod: size of input array incorrect')
+
+    if (size(data_out,1) /= Interp%nlon_dst .or. size(data_out,2) /= Interp%nlat_dst) &
+         call mpp_error(FATAL, 'horiz_interp_conserve_mod: size of output array incorrect')
+
+    select case ( Interp%version)
+    case (1)
+       call horiz_interp_conserve_version1_r8(Interp, data_in, data_out, verbose, mask_in, mask_out)
+    case (2)
+       if(present(mask_in) .OR. present(mask_out) ) call mpp_error(FATAL,  &
+            'horiz_interp_conserve: for version 2, mask_in and mask_out must be passed in horiz_interp_new, not in horiz_interp')
+       call horiz_interp_conserve_version2_r8(Interp, data_in, data_out, verbose)
+    end select
+
+  end subroutine horiz_interp_conserve_r8
+  ! </SUBROUTINE>
+
+  !##############################################################################
+  subroutine horiz_interp_conserve_version1_r4 ( Interp, data_in, data_out, verbose, &
+       mask_in, mask_out)
+    !-----------------------------------------------------------------------
+    type (horiz_interp_type), intent(in) :: Interp
+    real(r4_kind), intent(in),  dimension(:,:) :: data_in
+    real(r4_kind), intent(out), dimension(:,:) :: data_out
+    integer, intent(in),                   optional :: verbose
+    real(r4_kind), intent(in),   dimension(:,:), optional :: mask_in
+    real(r4_kind), intent(out),  dimension(:,:), optional :: mask_out
     !----------local variables----------------------------------------------------
     integer :: m, n, nlon_in, nlat_in, nlon_out, nlat_out,   &
          miss_in, miss_out, is, ie, js, je,   &
          np, npass, iverbose
-    real    :: dsum, wsum, avg_in, min_in, max_in,   &
+    real(r4_kind)    :: dsum, wsum, avg_in, min_in, max_in,   &
+         avg_out, min_out, max_out, eps, asum,   &
+         dwtsum, wtsum, arsum, fis, fie, fjs, fje
+    !-----------------------------------------------------------------------
+    iverbose = 0;  if (present(verbose)) iverbose = verbose
+
+    eps = epsilon(wtsum)
+
+    nlon_in  = Interp%nlon_src;  nlat_in  = Interp%nlat_src
+    nlon_out = Interp%nlon_dst; nlat_out = Interp%nlat_dst
+
+    if (present(mask_in)) then
+       if ( count(mask_in < -.0001 .or. mask_in > 1.0001) > 0 ) &
+            call mpp_error(FATAL, 'horiz_interp_conserve_mod: input mask not between 0,1')
+    endif
+
+    !-----------------------------------------------------------------------
+    !---- loop through output grid boxes ----
+
+    data_out = 0.0
+    do n = 1, nlat_out
+       ! latitude window
+       ! setup ascending latitude indices and weights
+       if (Interp%jlat(n,1) <= Interp%jlat(n,2)) then
+          js = Interp%jlat(n,1); je = Interp%jlat(n,2)
+          fjs = Interp%facj_4(n,1); fje = Interp%facj_4(n,2)
+       else
+          js = Interp%jlat(n,2); je = Interp%jlat(n,1)
+          fjs = Interp%facj_4(n,2); fje = Interp%facj_4(n,1)
+       endif
+
+       do m = 1, nlon_out
+          ! longitude window
+          is = Interp%ilon(m,1); ie = Interp%ilon(m,2)
+          fis = Interp%faci_4(m,1); fie = Interp%faci_4(m,2)
+          npass = 1
+          dwtsum = 0.
+          wtsum = 0.
+          arsum = 0.
+
+          ! wrap-around on input grid
+          ! sum using 2 passes (pass 1: end of input grid)
+          if ( ie < is ) then
+             ie = nlon_in
+             fie = 1.0
+             npass = 2
+          endif
+
+          do np = 1, npass
+             ! pass 2: beginning of input grid
+             if ( np == 2 ) then
+                is = 1
+                fis = 1.0
+                ie = Interp%ilon(m,2)
+                fie = Interp%faci_4(m,2)
+             endif
+
+             ! summing data*weight and weight for single grid point
+             if (present(mask_in)) then
+                call data_sum_r4 ( data_in(is:ie,js:je), Interp%area_src_4(is:ie,js:je), &
+                     fis, fie, fjs,fje, dwtsum, wtsum, arsum, mask_in(is:ie,js:je)  )
+             else if( ASSOCIATED(Interp%mask_in_4) ) then
+                call data_sum_r4 ( data_in(is:ie,js:je), Interp%area_src_4(is:ie,js:je), &
+                     fis, fie, fjs,fje, dwtsum, wtsum, arsum, Interp%mask_in_4(is:ie,js:je)  )
+             else
+                call data_sum_r4 ( data_in(is:ie,js:je), Interp%area_src_4(is:ie,js:je), &
+                     fis, fie, fjs,fje,  dwtsum, wtsum, arsum    )
+             endif
+          enddo
+
+          if (wtsum > eps) then
+             data_out(m,n) = dwtsum/wtsum
+             if (present(mask_out)) mask_out(m,n) = wtsum/arsum
+          else
+             data_out(m,n) = 0.
+             if (present(mask_out)) mask_out(m,n) = 0.0
+          endif
+
+       enddo
+    enddo
+
+    !***********************************************************************
+    ! compute statistics: minimum, maximum, and mean
+    !-----------------------------------------------------------------------
+
+    if (iverbose > 0) then
+
+       ! compute statistics of input data
+
+       call stats(data_in, Interp%area_src_4, asum, dsum, wsum, min_in, max_in, miss_in, mask_in)
+       ! diagnostic messages
+       ! on the root_pe, we can calculate the global mean, minimum and maximum.
+       if(pe == root_pe) then
+          if (wsum > 0.0) then
+             avg_in=dsum/wsum
+          else
+             print *, 'horiz_interp stats: input area equals zero '
+             avg_in=0.0
+          endif
+          if (iverbose > 1) print '(2f16.11)', 'global sum area_in  = ',  asum, wsum
+       endif
+
+       ! compute statistics of output data
+       call stats(data_out, Interp%area_dst_4, asum, dsum, wsum, min_out, max_out, miss_out, mask_out)
+       ! diagnostic messages
+       if(pe == root_pe) then
+          if (wsum > 0.0) then
+             avg_out=dsum/wsum
+          else
+             print *, 'horiz_interp stats: output area equals zero '
+             avg_out=0.0
+          endif
+          if (iverbose > 1) print '(2f16.11)', 'global sum area_out = ',  asum, wsum
+       endif
+       !---- output statistics ----
+       ! the global mean, min and max are calculated on the root pe.
+       if(pe == root_pe) then
+          write (*,900)
+          write (*,901)  min_in ,max_in ,avg_in
+          if (present(mask_in))  write (*,903)  miss_in
+          write (*,902)  min_out,max_out,avg_out
+          if (present(mask_out)) write (*,903)  miss_out
+       endif
+
+900    format (/,1x,10('-'),' output from horiz_interp ',10('-'))
+901    format ('  input:  min=',f16.9,'  max=',f16.9,'  avg=',f22.15)
+902    format (' output:  min=',f16.9,'  max=',f16.9,'  avg=',f22.15)
+903    format ('          number of missing points = ',i6)
+
+    endif
+
+    !-----------------------------------------------------------------------
+  end subroutine horiz_interp_conserve_version1_r4
+
+  subroutine horiz_interp_conserve_version1_r8 ( Interp, data_in, data_out, verbose, &
+       mask_in, mask_out)
+    !-----------------------------------------------------------------------
+    type (horiz_interp_type), intent(in) :: Interp
+    real(r8_kind), intent(in),  dimension(:,:) :: data_in
+    real(r8_kind), intent(out), dimension(:,:) :: data_out
+    integer, intent(in),                   optional :: verbose
+    real(r8_kind), intent(in),   dimension(:,:), optional :: mask_in
+    real(r8_kind), intent(out),  dimension(:,:), optional :: mask_out
+    !----------local variables----------------------------------------------------
+    integer :: m, n, nlon_in, nlat_in, nlon_out, nlat_out,   &
+         miss_in, miss_out, is, ie, js, je,   &
+         np, npass, iverbose
+    real(r8_kind)    :: dsum, wsum, avg_in, min_in, max_in,   &
          avg_out, min_out, max_out, eps, asum,   &
          dwtsum, wtsum, arsum, fis, fie, fjs, fje
     !-----------------------------------------------------------------------
@@ -865,13 +1046,13 @@ contains
 
              ! summing data*weight and weight for single grid point
              if (present(mask_in)) then
-                call data_sum ( data_in(is:ie,js:je), Interp%area_src(is:ie,js:je), &
+                call data_sum_r8 ( data_in(is:ie,js:je), Interp%area_src(is:ie,js:je), &
                      fis, fie, fjs,fje, dwtsum, wtsum, arsum, mask_in(is:ie,js:je)  )
              else if( ASSOCIATED(Interp%mask_in) ) then
-                call data_sum ( data_in(is:ie,js:je), Interp%area_src(is:ie,js:je), &
+                call data_sum_r8 ( data_in(is:ie,js:je), Interp%area_src(is:ie,js:je), &
                      fis, fie, fjs,fje, dwtsum, wtsum, arsum, Interp%mask_in(is:ie,js:je)  )
              else
-                call data_sum ( data_in(is:ie,js:je), Interp%area_src(is:ie,js:je), &
+                call data_sum_r8 ( data_in(is:ie,js:je), Interp%area_src(is:ie,js:je), &
                      fis, fie, fjs,fje,  dwtsum, wtsum, arsum    )
              endif
           enddo
@@ -938,14 +1119,31 @@ contains
     endif
 
     !-----------------------------------------------------------------------
-  end subroutine horiz_interp_conserve_version1
+  end subroutine horiz_interp_conserve_version1_r8
 
   !#############################################################################
-  subroutine horiz_interp_conserve_version2 ( Interp, data_in, data_out, verbose )
+  subroutine horiz_interp_conserve_version2_r4 ( Interp, data_in, data_out, verbose )
     !-----------------------------------------------------------------------
     type (horiz_interp_type), intent(in) :: Interp
-    real,    intent(in),  dimension(:,:) :: data_in
-    real,    intent(out), dimension(:,:) :: data_out
+    real(r4_kind),    intent(in),  dimension(:,:) :: data_in
+    real(r4_kind),    intent(out), dimension(:,:) :: data_out
+    integer, intent(in),        optional :: verbose
+    integer :: i, i_src, j_src, i_dst, j_dst
+
+    data_out = 0.0
+    do i = 1, Interp%nxgrid
+       i_src = Interp%i_src(i); j_src = Interp%j_src(i)
+       i_dst = Interp%i_dst(i); j_dst = Interp%j_dst(i)
+       data_out(i_dst, j_dst) = data_out(i_dst, j_dst) + data_in(i_src,j_src)*Interp%area_frac_dst_4(i)
+    end do
+
+  end subroutine horiz_interp_conserve_version2_r4
+
+  subroutine horiz_interp_conserve_version2_r8 ( Interp, data_in, data_out, verbose )
+    !-----------------------------------------------------------------------
+    type (horiz_interp_type), intent(in) :: Interp
+    real(r8_kind),    intent(in),  dimension(:,:) :: data_in
+    real(r8_kind),    intent(out), dimension(:,:) :: data_out
     integer, intent(in),        optional :: verbose
     integer :: i, i_src, j_src, i_dst, j_dst
 
@@ -956,7 +1154,7 @@ contains
        data_out(i_dst, j_dst) = data_out(i_dst, j_dst) + data_in(i_src,j_src)*Interp%area_frac_dst(i)
     end do
 
-  end subroutine horiz_interp_conserve_version2
+  end subroutine horiz_interp_conserve_version2_r8
 
   !#######################################################################
   ! <SUBROUTINE NAME="horiz_interp_conserve_del">
@@ -1005,14 +1203,14 @@ contains
 
   !#######################################################################
   !---This statistics is for conservative scheme
-  subroutine stats ( dat, area, asum, dsum, wsum, low, high, miss, mask )
-    real,    intent(in)  :: dat(:,:), area(:,:)
-    real,    intent(out) :: asum, dsum, wsum, low, high
+  subroutine stats_r8 ( dat, area, asum, dsum, wsum, low, high, miss, mask )
+    real(r8_kind),    intent(in)  :: dat(:,:), area(:,:)
+    real(r8_kind),    intent(out) :: asum, dsum, wsum, low, high
     integer, intent(out) :: miss
-    real,    intent(in), optional :: mask(:,:)
+    real(r8_kind),    intent(in), optional :: mask(:,:)
 
     integer :: pe, root_pe, npes, p, buffer_int(1)
-    real    :: buffer_real(5)
+    real(r8_kind)    :: buffer_real(5)
 
     pe = mpp_pe()
     root_pe = mpp_root_pe()
@@ -1065,19 +1263,81 @@ contains
 
     call mpp_sync_self()
 
-  end subroutine stats
+  end subroutine stats_r8
+
+  subroutine stats_r4 ( dat, area, asum, dsum, wsum, low, high, miss, mask )
+    real(r4_kind),    intent(in)  :: dat(:,:), area(:,:)
+    real(r4_kind),    intent(out) :: asum, dsum, wsum, low, high
+    integer, intent(out) :: miss
+    real(r4_kind),    intent(in), optional :: mask(:,:)
+
+    integer :: pe, root_pe, npes, p, buffer_int(1)
+    real(r4_kind)    :: buffer_real(5)
+
+    pe = mpp_pe()
+    root_pe = mpp_root_pe()
+    npes = mpp_npes()
+
+    ! sum data, data*area; and find min,max on each pe.
+
+    if (present(mask)) then
+       asum = sum(area(:,:))
+       dsum = sum(area(:,:)*dat(:,:)*mask(:,:))
+       wsum = sum(area(:,:)*mask(:,:))
+       miss = count(mask(:,:) <= 0.5)
+       low  = minval(dat(:,:),mask=mask(:,:) > 0.5)
+       high = maxval(dat(:,:),mask=mask(:,:) > 0.5)
+    else
+       asum = sum(area(:,:))
+       dsum = sum(area(:,:)*dat(:,:))
+       wsum = sum(area(:,:))
+       miss = 0
+       low  = minval(dat(:,:))
+       high = maxval(dat(:,:))
+    endif
+
+    ! other pe send local min, max, avg to the root pe and
+    ! root pe receive these information
+
+    if(pe == root_pe) then
+       do p = 1, npes - 1
+          ! Force use of "scalar", integer pointer mpp interface
+          call mpp_recv(buffer_real(1),glen=5,from_pe=root_pe+p, tag=COMM_TAG_1)
+          asum = asum + buffer_real(1)
+          dsum = dsum + buffer_real(2)
+          wsum = wsum + buffer_real(3)
+          low  = min(low, buffer_real(4))
+          high = max(high, buffer_real(5))
+          call mpp_recv(buffer_int(1),glen=1,from_pe=root_pe+p, tag=COMM_TAG_2)
+          miss = miss + buffer_int(1)
+       enddo
+    else
+       buffer_real(1) = asum
+       buffer_real(2) = dsum
+       buffer_real(3) = wsum
+       buffer_real(4) = low
+       buffer_real(5) = high
+       ! Force use of "scalar", integer pointer mpp interface
+       call mpp_send(buffer_real(1),plen=5,to_pe=root_pe, tag=COMM_TAG_1)
+       buffer_int(1) = miss
+       call mpp_send(buffer_int(1),plen=1,to_pe=root_pe, tag=COMM_TAG_2)
+    endif
+
+    call mpp_sync_self()
+
+  end subroutine stats_r4
 
   !#######################################################################
 
-  subroutine data_sum( data, area, facis, facie, facjs, facje,  &
+  subroutine data_sum_r8( data, area, facis, facie, facjs, facje,  &
        dwtsum, wtsum, arsum, mask )
 
     !  sums up the data and weights for a single output grid box
     !-----------------------------------------------------------------------
-    real, intent(in), dimension(:,:) :: data, area
-    real, intent(in)                 :: facis, facie, facjs, facje
-    real, intent(inout)              :: dwtsum, wtsum, arsum
-    real, intent(in), optional       :: mask(:,:)
+    real(r8_kind), intent(in), dimension(:,:) :: data, area
+    real(r8_kind), intent(in)                 :: facis, facie, facjs, facje
+    real(r8_kind), intent(inout)              :: dwtsum, wtsum, arsum
+    real(r8_kind), intent(in), optional       :: mask(:,:)
 
     !  fac__ = fractional portion of each boundary grid box included
     !          in the integral
@@ -1085,8 +1345,8 @@ contains
     !  wtsum  = sum(area*mask)
     !  arsum  = sum(area)
     !-----------------------------------------------------------------------
-    real, dimension(size(area,1),size(area,2)) :: wt
-    real    :: asum
+    real(r8_kind), dimension(size(area,1),size(area,2)) :: wt
+    real(r8_kind)    :: asum
     integer :: id, jd
     !-----------------------------------------------------------------------
 
@@ -1111,8 +1371,51 @@ contains
     endif
     !-----------------------------------------------------------------------
 
-  end subroutine data_sum
+  end subroutine data_sum_r8
 
+  subroutine data_sum_r4( data, area, facis, facie, facjs, facje,  &
+       dwtsum, wtsum, arsum, mask )
+
+    !  sums up the data and weights for a single output grid box
+    !-----------------------------------------------------------------------
+    real(r4_kind), intent(in), dimension(:,:) :: data, area
+    real(r4_kind), intent(in)                 :: facis, facie, facjs, facje
+    real(r4_kind), intent(inout)              :: dwtsum, wtsum, arsum
+    real(r4_kind), intent(in), optional       :: mask(:,:)
+
+    !  fac__ = fractional portion of each boundary grid box included
+    !          in the integral
+    !  dwtsum = sum(data*area*mask)
+    !  wtsum  = sum(area*mask)
+    !  arsum  = sum(area)
+    !-----------------------------------------------------------------------
+    real(r4_kind), dimension(size(area,1),size(area,2)) :: wt
+    real(r4_kind)    :: asum
+    integer :: id, jd
+    !-----------------------------------------------------------------------
+
+    id=size(area,1); jd=size(area,2)
+
+    wt=area
+    wt( 1,:)=wt( 1,:)*facis
+    wt(id,:)=wt(id,:)*facie
+    wt(:, 1)=wt(:, 1)*facjs
+    wt(:,jd)=wt(:,jd)*facje
+
+    asum = sum(wt)
+    arsum = arsum + asum
+
+    if (present(mask)) then
+       wt = wt * mask
+       dwtsum = dwtsum + sum(wt*data)
+       wtsum =  wtsum + sum(wt)
+    else
+       dwtsum = dwtsum + sum(wt*data)
+       wtsum =  wtsum + asum
+    endif
+    !-----------------------------------------------------------------------
+
+  end subroutine data_sum_r4
 
   !#######################################################################
 

@@ -22,6 +22,7 @@ module horiz_interp_bicubic_mod
   use fms_mod,               only: write_version_number
   use horiz_interp_type_mod, only: horiz_interp_type
   use constants_mod,         only: PI
+  use platform_mod,          only: r4_kind, r8_kind
 
 
  implicit none
@@ -55,8 +56,9 @@ module horiz_interp_bicubic_mod
    public  :: horiz_interp_bicubic_init
 
   interface horiz_interp_bicubic_new
-    module procedure horiz_interp_bicubic_new_1d
-    module procedure horiz_interp_bicubic_new_1d_s
+    module procedure horiz_interp_bicubic_new_1d_r8
+    module procedure horiz_interp_bicubic_new_1d_s_r4
+    module procedure horiz_interp_bicubic_new_1d_s_r8
   end interface
 
 ! Include variable "version" to be written to log file.
@@ -156,20 +158,171 @@ module horiz_interp_bicubic_mod
   !      interpolation you must first use the "horiz_interp_bicubic_del" interface.
   !   </INOUT>
 
-  subroutine horiz_interp_bicubic_new_1d_s ( Interp, lon_in, lat_in, lon_out, lat_out, &
+  subroutine horiz_interp_bicubic_new_1d_s_r4 ( Interp, lon_in, lat_in, lon_out, lat_out, &
        verbose, src_modulo )
 
     !-----------------------------------------------------------------------
     type(horiz_interp_type), intent(inout) :: Interp
-    real, intent(in),  dimension(:)        :: lon_in , lat_in
-    real, intent(in),  dimension(:,:)      :: lon_out, lat_out
+    real(r4_kind), intent(in),  dimension(:)        :: lon_in , lat_in
+    real(r4_kind), intent(in),  dimension(:,:)      :: lon_out, lat_out
     integer, intent(in),          optional :: verbose
     logical, intent(in),          optional :: src_modulo
     integer                                :: i, j, ip1, im1, jp1, jm1
     logical                                :: src_is_modulo
     integer                                :: nlon_in, nlat_in, nlon_out, nlat_out
     integer                                :: jcl, jcu, icl, icu, jj
-    real                                   :: xz, yz
+    real(r4_kind)                                   :: xz, yz
+    integer                                :: unit
+
+    if(present(verbose)) verbose_bicubic = verbose
+    src_is_modulo = .false.
+    if (present(src_modulo)) src_is_modulo = src_modulo
+
+    if(size(lon_out,1) /= size(lat_out,1) .or. size(lon_out,2) /= size(lat_out,2) ) &
+         call mpp_error(FATAL,'horiz_interp_bilinear_mod: when using bilinear ' // &
+         'interplation, the output grids should be geographical grids')
+
+    !--- get the grid size
+    nlon_in  = size(lon_in)   ; nlat_in  = size(lat_in)
+    nlon_out = size(lon_out,1); nlat_out = size(lat_out,2)
+    Interp%nlon_src = nlon_in;  Interp%nlat_src = nlat_in
+    Interp%nlon_dst = nlon_out; Interp%nlat_dst = nlat_out
+!   use wti(:,:,1) for x-derivative, wti(:,:,2) for y-derivative, wti(:,:,3) for xy-derivative
+    allocate ( Interp%wti_4    (nlon_in, nlat_in, 3) )
+    allocate ( Interp%lon_in_4 (nlon_in) )
+    allocate ( Interp%lat_in_4 (nlat_in) )
+    allocate ( Interp%rat_x_4 (nlon_out, nlat_out) )
+    allocate ( Interp%rat_y_4  (nlon_out, nlat_out) )
+    allocate ( Interp%i_lon  (nlon_out, nlat_out, 2) )
+    allocate ( Interp%j_lat  (nlon_out, nlat_out, 2) )
+
+    Interp%lon_in_4 = lon_in
+    Interp%lat_in_4 = lat_in
+
+    if ( verbose_bicubic > 0 ) then
+       unit = stdout()
+       write (unit,'(/,"Initialising bicubic interpolation, interface horiz_interp_bicubic_new_1d_s")')
+       write (unit,'(/," Longitude of coarse grid points (radian): xc(i) i=1, ",i4)') Interp%nlon_src
+       write (unit,'(1x,10f10.4)') (Interp%lon_in_4(jj),jj=1,Interp%nlon_src)
+       write (unit,'(/," Latitude of coarse grid points (radian):  yc(j) j=1, ",i4)') Interp%nlat_src
+       write (unit,'(1x,10f10.4)') (Interp%lat_in_4(jj),jj=1,Interp%nlat_src)
+       do i=1, Interp%nlat_dst
+         write (unit,*)
+         write (unit,'(/," Longitude of fine grid points (radian): xf(i) i=1, ",i4)') Interp%nlat_dst
+         write (unit,'(1x,10f10.4)') (lon_out(jj,i),jj=1,Interp%nlon_dst)
+       enddo
+       do i=1, Interp%nlon_dst
+         write (unit,*)
+         write (unit,'(/," Latitude of fine grid points (radian):  yf(j) j=1, ",i4)') Interp%nlon_dst
+         write (unit,'(1x,10f10.4)') (lat_out(i,jj),jj=1,Interp%nlat_dst)
+       enddo
+    endif
+
+
+!---------------------------------------------------------------------------
+!     Find the x-derivative. Use central differences and forward or
+!     backward steps at the boundaries
+
+    do j=1,nlat_in
+      do i=1,nlon_in
+        ip1=min(i+1,nlon_in)
+        im1=max(i-1,1)
+        Interp%wti_4(i,j,1) = 1./(Interp%lon_in_4(ip1)-Interp%lon_in_4(im1))
+      enddo
+    enddo
+
+
+!---------------------------------------------------------------------------
+
+!     Find the y-derivative. Use central differences and forward or
+!     backward steps at the boundaries
+      do j=1,nlat_in
+        jp1=min(j+1,nlat_in)
+        jm1=max(j-1,1)
+        do i=1,nlon_in
+          Interp%wti_4(i,j,2) = 1./(Interp%lat_in_4(jp1)-Interp%lat_in_4(jm1))
+        enddo
+      enddo
+
+!---------------------------------------------------------------------------
+
+!     Find the xy-derivative. Use central differences and forward or
+!     backward steps at the boundaries
+      do j=1,nlat_in
+        jp1=min(j+1,nlat_in)
+        jm1=max(j-1,1)
+        do i=1,nlon_in
+          ip1=min(i+1,nlon_in)
+          im1=max(i-1,1)
+          Interp%wti_4(i,j,3) = 1./((Interp%lon_in_4(ip1)-Interp%lon_in_4(im1))*(Interp%lat_in_4(jp1)-Interp%lat_in_4(jm1)))
+        enddo
+      enddo
+!---------------------------------------------------------------------------
+!     Now for each point at the dest-grid find the boundary points of
+!     the source grid
+      do j=1, nlat_out
+        do i=1,nlon_out
+          yz  = lat_out(i,j)
+          xz  = lon_out(i,j)
+
+          jcl = 0
+          jcu = 0
+          if( yz .le. Interp%lat_in_4(1) ) then
+             jcl = 1
+             jcu = 1
+          else if( yz .ge. Interp%lat_in_4(nlat_in) ) then
+             jcl = nlat_in
+             jcu = nlat_in
+          else
+             jcl = indl_4(Interp%lat_in_4, yz)
+             jcu = indu_4(Interp%lat_in_4, yz)
+          endif
+
+          icl = 0
+          icu = 0
+          !--- cyclic condition, do we need to use do while
+          if( xz .gt. Interp%lon_in_4(nlon_in) ) xz = xz - tpi
+          if( xz .le. Interp%lon_in_4(1) ) xz = xz + tpi
+          if( xz .ge. Interp%lon_in_4(nlon_in) ) then
+            icl = nlon_in
+            icu = 1
+            Interp%rat_x_4(i,j) = (xz - Interp%lon_in_4(icl))/(Interp%lon_in_4(icu) - Interp%lon_in_4(icl) + tpi)
+          else
+            icl = indl_4(Interp%lon_in_4, xz)
+            icu = indu_4(Interp%lon_in_4, xz)
+            Interp%rat_x_4(i,j) = (xz - Interp%lon_in_4(icl))/(Interp%lon_in_4(icu) - Interp%lon_in_4(icl))
+          endif
+          Interp%j_lat(i,j,1) = jcl
+          Interp%j_lat(i,j,2) = jcu
+          Interp%i_lon(i,j,1) = icl
+          Interp%i_lon(i,j,2) = icu
+          if(jcl == jcu) then
+             Interp%rat_y_4(i,j) = 0.0
+          else
+             Interp%rat_y_4(i,j) = (yz - Interp%lat_in_4(jcl))/(Interp%lat_in_4(jcu) - Interp%lat_in_4(jcl))
+          endif
+!          if(yz.gt.Interp%lat_in(jcu)) call mpp_error(FATAL, ' horiz_interp_bicubic_new_1d_s: yf < ycl, no valid boundary point')
+!          if(yz.lt.Interp%lat_in(jcl)) call mpp_error(FATAL, ' horiz_interp_bicubic_new_1d_s: yf > ycu, no valid boundary point')
+!          if(xz.gt.Interp%lon_in(icu)) call mpp_error(FATAL, ' horiz_interp_bicubic_new_1d_s: xf < xcl, no valid boundary point')
+!          if(xz.lt.Interp%lon_in(icl)) call mpp_error(FATAL, ' horiz_interp_bicubic_new_1d_s: xf > xcu, no valid boundary point')
+        enddo
+      enddo
+  end subroutine horiz_interp_bicubic_new_1d_s_r4
+
+  subroutine horiz_interp_bicubic_new_1d_s_r8 ( Interp, lon_in, lat_in, lon_out, lat_out, &
+       verbose, src_modulo )
+
+    !-----------------------------------------------------------------------
+    type(horiz_interp_type), intent(inout) :: Interp
+    real(r8_kind), intent(in),  dimension(:)        :: lon_in , lat_in
+    real(r8_kind), intent(in),  dimension(:,:)      :: lon_out, lat_out
+    integer, intent(in),          optional :: verbose
+    logical, intent(in),          optional :: src_modulo
+    integer                                :: i, j, ip1, im1, jp1, jm1
+    logical                                :: src_is_modulo
+    integer                                :: nlon_in, nlat_in, nlon_out, nlat_out
+    integer                                :: jcl, jcu, icl, icu, jj
+    real(r8_kind)                          :: xz, yz
     integer                                :: unit
 
     if(present(verbose)) verbose_bicubic = verbose
@@ -305,22 +458,22 @@ module horiz_interp_bicubic_mod
 !          if(xz.lt.Interp%lon_in(icl)) call mpp_error(FATAL, ' horiz_interp_bicubic_new_1d_s: xf > xcu, no valid boundary point')
         enddo
       enddo
-  end subroutine horiz_interp_bicubic_new_1d_s
+  end subroutine horiz_interp_bicubic_new_1d_s_r8
   ! </SUBROUTINE>
-  subroutine horiz_interp_bicubic_new_1d ( Interp, lon_in, lat_in, lon_out, lat_out, &
+  subroutine horiz_interp_bicubic_new_1d_r8 ( Interp, lon_in, lat_in, lon_out, lat_out, &
        verbose, src_modulo )
 
     !-----------------------------------------------------------------------
     type(horiz_interp_type), intent(inout) :: Interp
-    real, intent(in),  dimension(:)        :: lon_in , lat_in
-    real, intent(in),  dimension(:)        :: lon_out, lat_out
+    real(r8_kind), intent(in),  dimension(:)        :: lon_in , lat_in
+    real(r8_kind), intent(in),  dimension(:)        :: lon_out, lat_out
     integer, intent(in),          optional :: verbose
     logical, intent(in),          optional :: src_modulo
     integer                                :: i, j, ip1, im1, jp1, jm1
     logical                                :: src_is_modulo
     integer                                :: nlon_in, nlat_in, nlon_out, nlat_out
     integer                                :: jcl, jcu, icl, icu, jj
-    real                                   :: xz, yz
+    real(r8_kind)                          :: xz, yz
     integer                                :: unit
 
     if(present(verbose)) verbose_bicubic = verbose
@@ -447,7 +600,7 @@ module horiz_interp_bicubic_mod
         enddo
       enddo
 
-  end subroutine horiz_interp_bicubic_new_1d
+  end subroutine horiz_interp_bicubic_new_1d_r8
 
   subroutine horiz_interp_bicubic( Interp, data_in, data_out, verbose, mask_in, mask_out, missing_value, missing_permit)
     type (horiz_interp_type), intent(in)        :: Interp
@@ -604,8 +757,8 @@ module horiz_interp_bicubic_mod
 
     function indl(xc, xf)
 ! find the lower neighbour of xf in field xc, return is the index
-    real, intent(in) :: xc(1:)
-    real, intent(in) :: xf
+    real(r8_kind), intent(in) :: xc(1:)
+    real(r8_kind), intent(in) :: xf
     integer             :: indl
     integer             :: ii
        indl = 1
@@ -617,12 +770,26 @@ module horiz_interp_bicubic_mod
     return
     end function indl
 
+    function indl_4(xc, xf)
+! find the lower neighbour of xf in field xc, return is the index
+    real(r4_kind), intent(in) :: xc(1:)
+    real(r4_kind), intent(in) :: xf
+    integer             :: indl_4
+    integer             :: ii
+       indl_4 = 1
+       do ii=1, size(xc)
+         if(xc(ii).gt.xf) return
+         indl_4 = ii
+       enddo
+       call mpp_error(FATAL,'Error in indl')
+    return
+    end function indl_4
 !-----------------------------------------------------------------------
 
     function indu(xc, xf)
 ! find the upper neighbour of xf in field xc, return is the index
-    real, intent(in) :: xc(1:)
-    real, intent(in) :: xf
+    real(r8_kind), intent(in) :: xc(1:)
+    real(r8_kind), intent(in) :: xf
     integer             :: indu
     integer             :: ii
        do ii=1, size(xc)
@@ -632,6 +799,20 @@ module horiz_interp_bicubic_mod
        call mpp_error(FATAL,'Error in indu')
     return
     end function indu
+
+    function indu_4(xc, xf)
+! find the upper neighbour of xf in field xc, return is the index
+    real(r4_kind), intent(in) :: xc(1:)
+    real(r4_kind), intent(in) :: xf
+    integer             :: indu_4
+    integer             :: ii
+       do ii=1, size(xc)
+         indu_4 = ii
+         if(xc(ii).gt.xf) return
+       enddo
+       call mpp_error(FATAL,'Error in indu')
+    return
+    end function indu_4
 
 !-----------------------------------------------------------------------
 

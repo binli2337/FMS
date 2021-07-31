@@ -22,6 +22,7 @@
 !! @author Zhi Liang
 !! @email gfdl.climate.model.info@noaa.gov
 module horiz_interp_type_mod
+use platform_mod,    only: r4_kind, r8_kind
 ! <CONTACT EMAIL="Zhi.Liang@noaa.gov"> Zhi Liang </CONTACT>
 
 ! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
@@ -60,25 +61,35 @@ end interface
 
 !<PUBLICTYPE >
  type horiz_interp_type
-   real,    dimension(:,:), pointer   :: faci =>NULL()   !< weights for conservative scheme
-   real,    dimension(:,:), pointer   :: facj =>NULL()   !< weights for conservative scheme
+   real(r4_kind),    dimension(:,:), pointer   :: faci_4 =>NULL()   !< weights for conservative scheme
+   real(r4_kind),    dimension(:,:), pointer   :: facj_4 =>NULL()   !< weights for conservative scheme
+   real(r8_kind),    dimension(:,:), pointer   :: faci =>NULL()   !< weights for conservative scheme
+   real(r8_kind),    dimension(:,:), pointer   :: facj =>NULL()   !< weights for conservative scheme
    integer, dimension(:,:), pointer   :: ilon =>NULL()   !< indices for conservative scheme
    integer, dimension(:,:), pointer   :: jlat =>NULL()   !< indices for conservative scheme
-   real,    dimension(:,:), pointer   :: area_src =>NULL()              !< area of the source grid
-   real,    dimension(:,:), pointer   :: area_dst =>NULL()              !< area of the destination grid
-   real,    dimension(:,:,:), pointer :: wti =>NULL()      !< weights for bilinear interpolation
+   real(r4_kind),    dimension(:,:), pointer   :: area_src_4 =>NULL()              !< area of the source grid
+   real(r4_kind),    dimension(:,:), pointer   :: area_dst_4 =>NULL()              !< area of the destination grid
+   real(r4_kind),    dimension(:,:,:), pointer :: wti_4 =>NULL()      !< weights for bilinear interpolation
                                                            !! wti ist used for derivative "weights" in bicubic
-   real,    dimension(:,:,:), pointer :: wtj =>NULL()      !< weights for bilinear interpolation
+   real(r4_kind),    dimension(:,:,:), pointer :: wtj_4 =>NULL()      !< weights for bilinear interpolation
+   real(r8_kind),    dimension(:,:), pointer   :: area_src =>NULL()              !< area of the source grid
+   real(r8_kind),    dimension(:,:), pointer   :: area_dst =>NULL()              !< area of the destination grid
+   real(r8_kind),    dimension(:,:,:), pointer :: wti =>NULL()      !< weights for bilinear interpolation
+                                                           !! wti ist used for derivative "weights" in bicubic
+   real(r8_kind),    dimension(:,:,:), pointer :: wtj =>NULL()      !< weights for bilinear interpolation
                                                            !! wti ist used for derivative "weights" in bicubic
    integer, dimension(:,:,:), pointer :: i_lon =>NULL() !< indices for bilinear interpolation
                                                         !! and spherical regrid
    integer, dimension(:,:,:), pointer :: j_lat =>NULL() !< indices for bilinear interpolation
                                                         !! and spherical regrid
-   real,    dimension(:,:,:), pointer :: src_dist =>NULL()              !< distance between destination grid and
+   real(r4_kind),    dimension(:,:,:), pointer :: src_dist_4 =>NULL()              !< distance between destination grid and
+                                                                        !! neighbor source grid.
+   real(r8_kind),    dimension(:,:,:), pointer :: src_dist =>NULL()              !< distance between destination grid and
                                                                         !! neighbor source grid.
    logical, dimension(:,:), pointer   :: found_neighbors =>NULL()       !< indicate whether destination grid
                                                                         !! has some source grid around it.
-   real                               :: max_src_dist
+   real(r4_kind)                               :: max_src_dist_4
+   real(r8_kind)                               :: max_src_dist
    integer, dimension(:,:), pointer   :: num_found => NULL()
    integer                            :: nlon_src !< size of source grid
    integer                            :: nlat_src !< size of source grid
@@ -89,12 +100,18 @@ end interface
                                                             !! =2, bilinear interpolation
                                                             !! =3, spherical regrid
                                                             !! =4, bicubic regrid
-   real,    dimension(:,:), pointer   :: rat_x =>NULL() !< the ratio of coordinates of the dest grid
+   real(r4_kind),    dimension(:,:), pointer   :: rat_x_4 =>NULL() !< the ratio of coordinates of the dest grid
                                                         !! (x_dest -x_src_r)/(x_src_l -x_src_r) and (y_dest -y_src_r)/(y_src_l -y_src_r)
-   real,    dimension(:,:), pointer   :: rat_y =>NULL() !< the ratio of coordinates of the dest grid
+   real(r4_kind),    dimension(:,:), pointer   :: rat_y_4 =>NULL() !< the ratio of coordinates of the dest grid
                                                         !! (x_dest -x_src_r)/(x_src_l -x_src_r) and (y_dest -y_src_r)/(y_src_l -y_src_r)
-   real,    dimension(:), pointer     :: lon_in =>NULL()  !< the coordinates of the source grid
-   real,    dimension(:), pointer     :: lat_in =>NULL()  !< the coordinates of the source grid
+   real(r4_kind),    dimension(:), pointer     :: lon_in_4 =>NULL()  !< the coordinates of the source grid
+   real(r4_kind),    dimension(:), pointer     :: lat_in_4 =>NULL()  !< the coordinates of the source grid
+   real(r8_kind),    dimension(:,:), pointer   :: rat_x =>NULL() !< the ratio of coordinates of the dest grid
+                                                        !! (x_dest -x_src_r)/(x_src_l -x_src_r) and (y_dest -y_src_r)/(y_src_l -y_src_r)
+   real(r8_kind),    dimension(:,:), pointer   :: rat_y =>NULL() !< the ratio of coordinates of the dest grid
+                                                        !! (x_dest -x_src_r)/(x_src_l -x_src_r) and (y_dest -y_src_r)/(y_src_l -y_src_r)
+   real(r8_kind),    dimension(:), pointer     :: lon_in =>NULL()  !< the coordinates of the source grid
+   real(r8_kind),    dimension(:), pointer     :: lat_in =>NULL()  !< the coordinates of the source grid
    logical                            :: I_am_initialized=.false.
    integer                            :: version                            !< indicate conservative interpolation version with value 1 or 2
    !--- The following are for conservative interpolation scheme version 2 ( through xgrid)
@@ -103,8 +120,10 @@ end interface
    integer, dimension(:), pointer     :: j_src=>NULL()       !< indices in source grid.
    integer, dimension(:), pointer     :: i_dst=>NULL()       !< indices in destination grid.
    integer, dimension(:), pointer     :: j_dst=>NULL()       !< indices in destination grid.
-   real,    dimension(:), pointer     :: area_frac_dst=>NULL()              !< area fraction in destination grid.
-   real,    dimension(:,:), pointer   :: mask_in=>NULL()
+   real(r4_kind),    dimension(:), pointer     :: area_frac_dst_4=>NULL()              !< area fraction in destination grid.
+   real(r4_kind),    dimension(:,:), pointer   :: mask_in_4=>NULL()
+   real(r8_kind),    dimension(:), pointer     :: area_frac_dst=>NULL()              !< area fraction in destination grid.
+   real(r8_kind),    dimension(:,:), pointer   :: mask_in=>NULL()
  end type
 !</PUBLICTYPE>
 
