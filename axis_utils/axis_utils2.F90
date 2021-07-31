@@ -38,8 +38,8 @@ module axis_utils2_mod
   private
 
   integer, parameter :: maxatts = 100
-  real, parameter    :: epsln= 1.e-10
-  real, parameter    :: fp5 = 0.5, f360 = 360.0
+  real(r4_kind), parameter    :: epsln= 1.e-10
+  real(r4_kind), parameter    :: fp5 = 0.5, f360 = 360.0
 
 ! Include variable "version" to be written to log file.
 #include<file_version.h>
@@ -48,6 +48,11 @@ module axis_utils2_mod
      module procedure interp_1d_1d
      module procedure interp_1d_2d
      module procedure interp_1d_3d
+  end interface
+
+  interface nearest_index
+     module procedure nearest_index_r4
+     module procedure nearest_index_r8
   end interface
 
 contains
@@ -445,7 +450,7 @@ end subroutine axis_edges
 
   !> @brief Return index of nearest point along axis
   !! @return integer nearest_index
-  function nearest_index (value, array)
+  function nearest_index_r4 (value, array)
     !=======================================================================
     !
     !     nearest_index = index of nearest data point within "array" corresponding to
@@ -484,11 +489,11 @@ end subroutine axis_edges
     !
     !=======================================================================
 
-    integer :: nearest_index
+    integer :: nearest_index_r4
     integer :: ia !< dimension of "array"
     integer :: i, ii, unit
-    real :: value !< arbitrary data...same units as elements in "array"
-    real, dimension(:) :: array !< array of data points  (must be monotonically increasing)
+    real(r4_kind) :: value !< arbitrary data...same units as elements in "array"
+    real(r4_kind), dimension(:) :: array !< array of data points  (must be monotonically increasing)
     logical keep_going
 
     ia = size(array(:))
@@ -507,21 +512,99 @@ end subroutine axis_edges
        endif
     enddo
     if (value < array(1) .or. value > array(ia)) then
-       if (value < array(1))  nearest_index = 1
-       if (value > array(ia)) nearest_index = ia
+       if (value < array(1))  nearest_index_r4 = 1
+       if (value > array(ia)) nearest_index_r4 = ia
     else
        i=1
        keep_going = .true.
        do while (i <= ia .and. keep_going)
           i = i+1
           if (value <= array(i)) then
-             nearest_index = i
-             if (array(i)-value > value-array(i-1)) nearest_index = i-1
+             nearest_index_r4 = i
+             if (array(i)-value > value-array(i-1)) nearest_index_r4 = i-1
              keep_going = .false.
           endif
        enddo
     endif
-  end function nearest_index
+  end function nearest_index_r4
+
+  function nearest_index_r8 (value, array)
+    !=======================================================================
+    !
+    !     nearest_index = index of nearest data point within "array" corresponding to
+    !            "value".
+    !
+    !     inputs:
+    !
+    !     value  = arbitrary data...same units as elements in "array"
+    !     array  = array of data points  (must be monotonically increasing)
+    !     ia     = dimension of "array"
+    !
+    !     output:
+    !
+    !     nearest_index =  index of nearest data point to "value"
+    !             if "value" is outside the domain of "array" then nearest_index = 1
+    !             or "ia" depending on whether array(1) or array(ia) is
+    !             closest to "value"
+    !
+    !             note: if "array" is dimensioned array(0:ia) in the calling
+    !                   program, then the returned index should be reduced
+    !                   by one to account for the zero base.
+    !
+    !     example:
+    !
+    !     let model depths be defined by the following:
+    !     parameter (km=5)
+    !     dimension z(km)
+    !     data z /5.0, 10.0, 50.0, 100.0, 250.0/
+    !
+    !     k1 = nearest_index (12.5, z, km)
+    !     k2 = nearest_index (0.0, z, km)
+    !
+    !     k1 would be set to 2, and k2 would be set to 1 so that
+    !     z(k1) would be the nearest data point to 12.5 and z(k2) would
+    !     be the nearest data point to 0.0
+    !
+    !=======================================================================
+
+    integer :: nearest_index_r8
+    integer :: ia !< dimension of "array"
+    integer :: i, ii, unit
+    real(r8_kind) :: value !< arbitrary data...same units as elements in "array"
+    real(r8_kind), dimension(:) :: array !< array of data points  (must be monotonically increasing)
+    logical keep_going
+
+    ia = size(array(:))
+
+    do i=2,ia
+       if (array(i) < array(i-1)) then
+          unit = stdout()
+          write (unit,*) '=> Error: "nearest_index" array must be monotonically increasing &
+                         &when searching for nearest value to ',value
+          write (unit,*) '          array(i) < array(i-1) for i=',i
+          write (unit,*) '          array(i) for i=1..ia follows:'
+          do ii=1,ia
+             write (unit,*) 'i=',ii, ' array(i)=',array(ii)
+          enddo
+          call mpp_error(FATAL,' "nearest_index" array must be monotonically increasing.')
+       endif
+    enddo
+    if (value < array(1) .or. value > array(ia)) then
+       if (value < array(1))  nearest_index_r8 = 1
+       if (value > array(ia)) nearest_index_r8 = ia
+    else
+       i=1
+       keep_going = .true.
+       do while (i <= ia .and. keep_going)
+          i = i+1
+          if (value <= array(i)) then
+             nearest_index_r8 = i
+             if (array(i)-value > value-array(i-1)) nearest_index_r8 = i-1
+             keep_going = .false.
+          endif
+       enddo
+    endif
+  end function nearest_index_r8
 
   !#############################################################################
 
