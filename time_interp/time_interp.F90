@@ -47,6 +47,7 @@ use          fms_mod, only: write_version_number, &
                             check_nml_error, &
                             fms_error_handler
 use          mpp_mod, only: input_nml_file
+use     platform_mod, only: r4_kind, r8_kind
 
 implicit none
 private
@@ -287,7 +288,8 @@ contains
  subroutine time_interp_frac ( Time, weight )
 
    type(time_type), intent(in)  :: Time
-   real           , intent(out) :: weight !< fractional time
+   class(*)       , intent(out) :: weight !< fractional time
+   real                         :: weight_use !< fractional time
 
    integer         :: year, month, day, hour, minute, second
    type(time_type) :: Year_beg, Year_end
@@ -302,7 +304,13 @@ contains
      Year_beg = set_date(year  , 1, 1)
      Year_end = set_date(year+1, 1, 1)
 
-     weight = (Time - Year_beg) // (Year_end - Year_beg)
+     weight_use = (Time - Year_beg) // (Year_end - Year_beg)
+     select type (weight)
+     type is (real(kind=r4_kind))
+        weight = weight_use
+     type is (real(kind=r8_kind))
+        weight = weight_use
+     end select
 
  end subroutine time_interp_frac
 
@@ -337,7 +345,9 @@ contains
  subroutine time_interp_year ( Time, weight, year1, year2 )
 
    type(time_type), intent(in)  :: Time
-   real           , intent(out) :: weight !< fractional time between midpoints of year1 and year2
+   class(*)       , intent(out) :: weight !< fractional time between midpoints of year1 and year2
+   real                         :: weight_use
+
    integer        , intent(out) :: year1, year2
 
    integer :: year, month, day, hour, minute, second
@@ -356,14 +366,20 @@ contains
            year1  = year
            year2  = year+1
            Mid_year2 = year_midpt(year2)
-           weight = (Time - Mid_year) // (Mid_year2 - Mid_year)
+           weight_use = (Time - Mid_year) // (Mid_year2 - Mid_year)
       else
     ! current time is before mid point of current year
            year2  = year
            year1  = year-1
            Mid_year1 = year_midpt(year1)
-           weight = (Time - Mid_year1) // (Mid_year - Mid_year1)
+           weight_use = (Time - Mid_year1) // (Mid_year - Mid_year1)
       endif
+      select type (weight)
+      type is (real(kind=r4_kind))
+           weight = weight_use
+      type is (real(kind=r8_kind))
+           weight = weight_use
+      end select
 
  end subroutine time_interp_year
 
@@ -380,7 +396,8 @@ contains
  subroutine time_interp_month ( Time, weight, year1, year2, month1, month2 )
 
    type(time_type), intent(in)  :: Time
-   real           , intent(out) :: weight
+   class(*)       , intent(out) :: weight
+   real                         :: weight_use
    integer        , intent(out) :: year1, year2, month1, month2
 
    integer :: year, month, day, hour, minute, second,  &
@@ -404,7 +421,7 @@ contains
            endif
            mid1 = mid_month
            mid2 = days_in_month(set_date(year2,month2,2)) * halfday
-           weight = real(cur_month - mid1) / real(mid1+mid2)
+           weight_use = real(cur_month - mid1) / real(mid1+mid2)
       else
     ! current time is before mid point of current month
            year2  = year;  month2 = month
@@ -421,8 +438,14 @@ contains
               mid1 = days_in_month(set_date(1,month1,2)) * halfday
            endif
            mid2 = mid_month
-           weight = real(cur_month + mid1) / real(mid1+mid2)
+           weight_use = real(cur_month + mid1) / real(mid1+mid2)
       endif
+      select type (weight)
+      type is (real(kind=r4_kind))
+         weight=weight_use
+      type is (real(kind=r8_kind))
+         weight=weight_use
+      end select
 
  end subroutine time_interp_month
 
@@ -441,7 +464,8 @@ contains
  subroutine time_interp_day ( Time, weight, year1, year2, month1, month2, day1, day2 )
 
    type(time_type), intent(in)  :: Time
-   real           , intent(out) :: weight
+   class(*)                     :: weight
+   real                         :: weight_use
    integer        , intent(out) :: year1, year2, month1, month2, day1, day2
 
    integer :: year, month, day, hour, minute, second, sday
@@ -457,7 +481,7 @@ contains
     ! current time is after mid point of day
            year1 = year;  month1 = month;  day1 = day
            year2 = year;  month2 = month;  day2 = day + 1
-           weight  = real(sday - halfday) / real(secday)
+           weight_use  = real(sday - halfday) / real(secday)
 
            if (day2 > days_in_month(Time)) then
                month2 = month2 + 1
@@ -470,7 +494,7 @@ contains
     ! current time is before mid point of day
            year2 = year;  month2 = month;  day2 = day
            year1 = year;  month1 = month;  day1 = day - 1
-           weight  = real(sday + halfday) / real(secday)
+           weight_use  = real(sday + halfday) / real(secday)
 
            if (day1 < 1) then
                month1 = month1 - 1
@@ -480,6 +504,12 @@ contains
                day1 = days_in_month(set_date(year1,month1,2))
            endif
       endif
+      select type (weight)
+      type is (real(kind=r4_kind))
+         weight=weight_use
+      type is (real(kind=r8_kind))
+         weight=weight_use
+      end select
 
  end subroutine time_interp_day
 
@@ -505,7 +535,8 @@ contains
 subroutine time_interp_modulo(Time, Time_beg, Time_end, Timelist, weight, index1, index2, &
                               correct_leap_year_inconsistency, err_msg)
 type(time_type), intent(in)  :: Time, Time_beg, Time_end, Timelist(:)
-real           , intent(out) :: weight
+class(*)       , intent(out) :: weight
+real                         :: weight_use
 integer        , intent(out) :: index1, index2
 logical, intent(in), optional :: correct_leap_year_inconsistency!< When true turns on a kluge for an
                                 !! inconsistency which may occur in a special case.
@@ -655,15 +686,21 @@ character(len=*), intent(out), optional :: err_msg
   if( T>=Timelist(ie) ) then
      ! time is after the end of the portion of the time list within the requested period
      index1 = ie;   index2 = is
-     weight = (T-Timelist(ie))//(Period-(Timelist(ie)-Timelist(is)))
+     weight_use = (T-Timelist(ie))//(Period-(Timelist(ie)-Timelist(is)))
   else if (T<Timelist(is)) then
      ! time is before the beginning of the portion of the time list within the requested period
      index1 = ie;   index2 = is
-     weight = 1.0-((Timelist(is)-T)//(Period-(Timelist(ie)-Timelist(is))))
+     weight_use = 1.0-((Timelist(is)-T)//(Period-(Timelist(ie)-Timelist(is))))
   else
      call bisect(Timelist,T,index1,index2)
-     weight = (T-Timelist(index1)) // (Timelist(index2)-Timelist(index1))
+     weight_use = (T-Timelist(index1)) // (Timelist(index2)-Timelist(index1))
   endif
+  select type (weight)
+  type is (real(kind=r4_kind))
+     weight=weight_use
+  type is (real(kind=r8_kind))
+     weight=weight_use
+  end select
 
 end subroutine time_interp_modulo
 
@@ -716,7 +753,8 @@ end subroutine bisect
 
 subroutine time_interp_list ( Time, Timelist, weight, index1, index2, modtime, err_msg )
 type(time_type)  , intent(in)  :: Time, Timelist(:)
-real             , intent(out) :: weight
+class(*)         , intent(out) :: weight
+real                           :: weight_use
 integer          , intent(out) :: index1, index2
 integer, optional, intent(in)  :: modtime
 character(len=*), intent(out), optional :: err_msg
@@ -729,7 +767,7 @@ character(len=:),allocatable :: terr, tserr, teerr
 
   if( present(err_msg) ) err_msg = ''
 
-  weight = 0.; index1 = 0; index2 = 0
+  weight_use = 0.; index1 = 0; index2 = 0
   n = size(Timelist(:))
 
 ! setup modular time axis?
@@ -784,7 +822,7 @@ character(len=:),allocatable :: terr, tserr, teerr
 ! time falls on start or between start and end list values
   if ( T >= Ts .and. T < Te ) then
      call bisect(Timelist(1:n),T,index1,index2)
-     weight = (T-Timelist(index1)) // (Timelist(index2)-Timelist(index1))
+     weight_use = (T-Timelist(index1)) // (Timelist(index2)-Timelist(index1))
 
 ! time falls before starting list value
   else if ( T < Ts ) then
@@ -799,18 +837,18 @@ character(len=:),allocatable :: terr, tserr, teerr
         deallocate(terr,tserr,teerr)
      endif
      Td = Te-Ts
-     weight = 1. - ((Ts-T) // (Period-Td))
+     weight_use = 1. - ((Ts-T) // (Period-Td))
      index1 = n
      index2 = 1
 
 ! time falls on ending list value
   else if ( T == Te ) then
     if(perthlike_behavior) then
-       weight = 1.0
+       weight_use = 1.0
        index1 = n-1
        index2 = n
     else
-       weight = 0.
+       weight_use = 0.
        index1 = n
        if (mtime == NONE) then
          index2 = n
@@ -832,10 +870,16 @@ character(len=:),allocatable :: terr, tserr, teerr
         deallocate(terr,tserr,teerr)
      endif
      Td = Te-Ts
-     weight = (T-Te) // (Period-Td)
+     weight_use = (T-Te) // (Period-Td)
      index1 = n
      index2 = 1
   endif
+  select type (weight)
+  type is (real(kind=r4_kind))
+     weight=weight_use
+  type is (real(kind=r8_kind))
+     weight=weight_use
+  end select
 
 end subroutine time_interp_list
 
