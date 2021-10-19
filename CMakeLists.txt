@@ -53,18 +53,18 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # Build options
 option(OPENMP    "Build FMS with OpenMP support" OFF)
-option(32BIT     "Build 32-bit (r4) FMS library" OFF)
-option(64BIT     "Build 64-bit (r8) FMS library" ON)
+option(32BIT     "Build 32-bit (r4) FMS library"  ON)
+option(64BIT     "Build 64-bit (r8) FMS library" OFF)
 
 # Options for compiler definitions
 option(INTERNAL_FILE_NML     "Enable compiler definition -DINTERNAL_FILE_NML"      ON)
 option(ENABLE_QUAD_PRECISION "Enable compiler definition -DENABLE_QUAD_PRECISION"  ON)
-option(GFS_PHYS              "Enable compiler definition -DGFS_PHYS"              ON)
+option(GFS_PHYS              "Enable compiler definition -DGFS_PHYS"              OFF)
 option(LARGEFILE             "Enable compiler definition -Duse_LARGEFILE"         OFF)
 
-#if(32BIT)
-#  list(APPEND kinds "r4")
-#endif()
+if(32BIT)
+  list(APPEND kinds "r4")
+endif()
 if(64BIT)
   list(APPEND kinds "r8")
 endif()
