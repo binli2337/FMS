@@ -53,18 +53,18 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # Build options
 option(OPENMP    "Build FMS with OpenMP support" OFF)
-option(32BIT     "Build 32-bit (r4) FMS library"  ON)
-option(64BIT     "Build 64-bit (r8) FMS library" OFF)
+option(32BIT     "Build 32-bit (r4) FMS library" OFF)
+option(64BIT     "Build 64-bit (r8) FMS library" ON)
 
 # Options for compiler definitions
 option(INTERNAL_FILE_NML     "Enable compiler definition -DINTERNAL_FILE_NML"      ON)
 option(ENABLE_QUAD_PRECISION "Enable compiler definition -DENABLE_QUAD_PRECISION"  ON)
-option(GFS_PHYS              "Enable compiler definition -DGFS_PHYS"              OFF)
+option(GFS_PHYS              "Enable compiler definition -DGFS_PHYS"              ON)
 option(LARGEFILE             "Enable compiler definition -Duse_LARGEFILE"         OFF)
 
-if(32BIT)
-  list(APPEND kinds "r4")
-endif()
+#if(32BIT)
+#  list(APPEND kinds "r4")
+#endif()
 if(64BIT)
   list(APPEND kinds "r8")
 endif()
@@ -94,6 +94,8 @@ list(APPEND fms_fortran_src_files
   column_diagnostics/column_diagnostics.F90
   constants/constants.F90
   constants/fmsconstants.F90
+  constants4/constants4.F90
+  constants4/fmsconstants4.F90
   coupler/atmos_ocean_fluxes.F90
   coupler/coupler_types.F90
   coupler/ensemble_manager.F90
