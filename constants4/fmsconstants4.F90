@@ -22,11 +22,11 @@
 !! @ref libfms.
 !!
 !> See @ref constants_mod for individual parameter information.
-module FMSconstants4
+module FMSconstantsR4
 
   !> rename to not conflict with any other version vars
   use constants4_mod, version_constants => version
 
   implicit none
 
-end module FMSconstants4
+end module FMSconstantsR4

@@ -47,7 +47,7 @@
 
 !> @addtogroup constants_mod
 !> @{
-module constants4_mod
+module constantsR4_mod
 
 !---variable for strong typing grid parameters
 use platform_mod, only: r8_kind, r4_kind
@@ -171,6 +171,6 @@ subroutine constants_init
 
 end subroutine constants_init
 
-end module constants4_mod
+end module constantsR4_mod
 !> @}
 ! close documentation grouping
