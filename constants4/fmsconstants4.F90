@@ -25,7 +25,7 @@
 module FMSconstantsR4
 
   !> rename to not conflict with any other version vars
-  use constants4_mod, version_constants => version
+  use constantsR4_mod, version_constants => version
 
   implicit none
 
