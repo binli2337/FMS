@@ -36,6 +36,7 @@ endif
 SUBDIRS = \
   platform \
   constants \
+  constants4 \
   tridiagonal \
   mpp \
   memutils \
