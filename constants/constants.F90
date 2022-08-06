@@ -50,7 +50,7 @@
 module constants_mod
 
 !---variable for strong typing grid parameters
-use platform_mod, only: r8_kind
+use platform_mod, only: r8_kind                  
 implicit none
 private
 
